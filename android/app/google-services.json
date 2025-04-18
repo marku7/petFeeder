@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "769464929694",
+    "firebase_url": "https://petfeeding-41649-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "petfeeding-41649",
+    "storage_bucket": "petfeeding-41649.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769464929694:android:0c3a19a52b2daa8e43da8f",
+        "android_client_info": {
+          "package_name": "com.example.pet_feeder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5iZkHuIk7b36levUzVW76fqsiGoKIPlo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
