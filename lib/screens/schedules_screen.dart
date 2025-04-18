@@ -51,7 +51,7 @@ class SchedulesScreen extends StatelessWidget {
                   WidgetsBinding.instance.addPostFrameCallback(
                     (timeStamp) {
                       Navigator.of(context).push(MaterialPageRoute(
-                          builder: (context) => const AlarmScreen()));
+                          builder: (context) => const ConfirmationScreen()));
                     },
                   );
                 }

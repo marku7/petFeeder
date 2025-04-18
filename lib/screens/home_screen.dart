@@ -19,17 +19,16 @@ class _HomeScreenState extends State<HomeScreen> {
   // configurations
   static const String ipAddress = '192.168.1.1'; // ip address of arduino
   static const int port = 80; // port of arduino
-  bool isTesting = true; // Add testing mode flag
+  bool isTesting = true; // testing mode
 
   Future<bool> sendFeedCommand(int grams) async {
     if (isTesting) {
-      // Simulate hardware response in testing mode
       print('TEST MODE: Sending feed command for $grams grams');
       print('TEST MODE: HTTP Request Details:');
       print('URL: http://$ipAddress:$port/feed');
       print('Method: POST');
       print('Body: {"grams": "$grams"}');
-      await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
+      await Future.delayed(const Duration(seconds: 2));
       return true;
     }
 
@@ -64,115 +63,140 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   showScheduleDialog() {
+    bool isLoading = false; // Track loading state
+
     showDialog(
       context: context,
+      barrierDismissible: false, // Prevent dismissing while loading
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Input value (in grams)'),
-          content: StatefulBuilder(builder: (context, setState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFieldWidget(
-                  label: 'value',
-                  controller: amount,
-                  inputType: TextInputType.number,
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Text('Testing Mode: '),
-                    Switch(
-                      value: isTesting,
-                      onChanged: (value) {
-                        setState(() {
-                          isTesting = value;
-                        });
-                      },
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Input value (in grams)'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFieldWidget(
+                    label: 'value',
+                    controller: amount,
+                    inputType: TextInputType.number,
+                    enabled: !isLoading, // Disable input while loading
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Text('Testing Mode: '),
+                      Switch(
+                        value: isTesting,
+                        onChanged: isLoading ? null : (value) { // Disable switch while loading
+                          setState(() {
+                            isTesting = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  if (isLoading) ...[
+                    const SizedBox(height: 10),
+                    const Center(
+                      child: CircularProgressIndicator(),
                     ),
                   ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () { // Disable cancel while loading
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('CANCEL'),
+                ),
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          if (amount.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter an amount'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          try {
+                            int grams = int.parse(amount.text);
+                            if (grams <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter a valid amount'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Set loading state
+                            setState(() {
+                              isLoading = true;
+                            });
+
+                            final success = await sendFeedCommand(grams);
+
+                            // Close dialog immediately after successful command
+                            Navigator.of(context).pop();
+
+                            if (success) {
+                              DateTime now = DateTime.now();
+                              String formattedTime = DateFormat('HH:mm').format(now);
+
+                              addFeed(
+                                grams,
+                                DateTime.now().year,
+                                DateTime.now().month,
+                                DateTime.now().day,
+                                formattedTime
+                              );
+
+                              if (mounted) {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (context) => const ConfirmationScreen()
+                                ));
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to send feed command. Please check your connection and try again.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter a valid number'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          } finally {
+                            // Reset loading state if dialog is still open
+                            if (mounted) {
+                              setState(() {
+                                isLoading = false;
+                              });
+                            }
+                          }
+                        },
+                  child: const Text('OK'),
                 ),
               ],
             );
-          }),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (amount.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter an amount'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  int grams = int.parse(amount.text);
-                  if (grams <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid amount'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  // Dismiss the dialog first
-                  Navigator.of(context).pop();
-
-                  final success = await sendFeedCommand(grams);
-
-                  if (success) {
-                    DateTime now = DateTime.now();
-                    String formattedTime = DateFormat('HH:mm').format(now);
-
-                    addFeed(
-                      grams,
-                      DateTime.now().year,
-                      DateTime.now().month,
-                      DateTime.now().day,
-                      formattedTime
-                    );
-
-                    // Navigate to alarm screen after successful feed
-                    if (mounted) {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => const AlarmScreen()
-                      ));
-                    }
-                  } else {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Failed to send feed command. Please check your connection and try again.'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid number'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('OK'),
-            ),
-          ],
+          },
         );
       },
     );

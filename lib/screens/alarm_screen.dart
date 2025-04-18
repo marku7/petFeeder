@@ -1,50 +1,16 @@
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_feeder/screens/home_screen.dart';
-import 'package:pet_feeder/widgets/button_widget.dart';
+import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 
-class AlarmScreen extends StatefulWidget {
-  const AlarmScreen({super.key});
+class ConfirmationScreen extends StatefulWidget {
+  const ConfirmationScreen({super.key});
 
   @override
-  State<AlarmScreen> createState() => _AlarmScreenState();
+  State<ConfirmationScreen> createState() => _ConfirmationScreenState();
 }
 
-class _AlarmScreenState extends State<AlarmScreen> {
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    playAudio();
-  }
-
-  late AudioPlayer player = AudioPlayer();
-  playAudio() async {
-    player.setReleaseMode(ReleaseMode.loop);
-    player.setVolume(1);
-
-    await player.setSource(
-      AssetSource(
-        'images/sound.wav',
-      ),
-    );
-
-    await player.resume();
-  }
-
-  pauseAudio() async {
-    await player.stop();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    pauseAudio();
-
-    player.stop();
-  }
-
+class _ConfirmationScreenState extends State<ConfirmationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,47 +19,47 @@ class _AlarmScreenState extends State<AlarmScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(
-              height: 50,
+            Image.asset(
+              'assets/images/com.jpg',
+              height: 150,
+              width: 150,
             ),
+            const SizedBox(height: 30),
             TextWidget(
-              text: 'Click the FEED BUTTON in your Device!',
-              fontSize: 18,
-              color: Colors.red,
+              text: 'Food Successfully Dispensed!',
+              fontSize: 24,
+              color: primary,
               fontFamily: 'Bold',
             ),
-            const SizedBox(
-              height: 50,
-            ),
-            Image.asset('assets/images/alarm.gif'),
-            const Expanded(
-              child: SizedBox(
-                height: 50,
+            const SizedBox(height: 50),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 15,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
-            ),
-            ButtonWidget(
-              radius: 100,
-              color: Colors.red,
-              label: 'Done Feeding',
               onPressed: () {
-                Navigator.of(context).pushReplacement(MaterialPageRoute(
-                    builder: (context) => const HomeScreen()));
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
               },
-            ),
-            const SizedBox(
-              height: 20,
+              child: const Text(
+                'Okay',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   backgroundColor: Colors.green,
-      //   child: const Icon(
-      //     Icons.done,
-      //     color: Colors.white,
-      //   ),
-      //   onPressed: () {},
-      // ),
     );
   }
 }
