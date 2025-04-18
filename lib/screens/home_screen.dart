@@ -6,6 +6,7 @@ import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:pet_feeder/widgets/textfield_widget.dart';
+import 'package:http/http.dart' as http;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,9 +16,135 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // configurations
+  static const String ipAddress = '192.168.1.1'; // ip address of arduino
+  static const int port = 80; // port of arduino
+  bool isTesting = true;
+
+  Future<bool> sendFeedCommand(int grams) async {
+    if (isTesting) {
+      print('Testing mode: Simulating feed command');
+      print('Sending feed command: $grams grams');
+      await Future.delayed(const Duration(seconds: 2));
+      return true;
+    }
+
+    try {
+      final response = await http.post(
+      Uri.parse('http://$ipAddress:$port/feed'),
+      body: {
+        'grams': grams.toString(),
+      },
+    );
+
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error sending feed command: $e');
+      return false;
+    }
+  }
+
+  Future<bool> testConnection() async {
+    if (isTesting) {
+      print('Testing mode: Simulating connection test');
+      await Future.delayed(const Duration(seconds: 2));
+      return true;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://$ipAddress:$port/status'),
+      );
+      print('Connection test response: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Connection test failed: $e');
+      return false;
+    }
+    
+  }
+
+   showScheduleDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Input value (in grams)'),
+          content: StatefulBuilder(builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFieldWidget(
+                  label: 'value',
+                  controller: amount,
+                  inputType: TextInputType.number,
+                ),
+              ],
+            );
+          }),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () async {
+               final success = await sendFeedCommand(int.parse(amount.text));
+
+               if (success) {
+                DateTime now = DateTime.now();
+                String formattedTime = DateFormat('HH:mm').format(now);
+
+                addFeed(
+                  int.parse(amount.text),
+                  DateTime.now().year,
+                  DateTime.now().month,
+                  DateTime.now().day,
+                  formattedTime
+                  );
+
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const AlarmScreen()
+                  ));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to send feed command. Please check your connection and try again.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          setState(() {
+            isTesting = !isTesting;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(isTesting ? 'Testing mode enabled' : 'Testing mode disabled'),
+              backgroundColor: isTesting ? Colors.green : Colors.red,
+            ),
+          );
+        },
+        child: Icon(isTesting ? Icons.bug_report : Icons.check),
+      ),
       drawer: const DrawerWidget(),
       appBar: AppBar(
         foregroundColor: Colors.white,
@@ -67,47 +194,4 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   final amount = TextEditingController();
-
-  showScheduleDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Input value (in grams)'),
-          content: StatefulBuilder(builder: (context, setState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFieldWidget(
-                  label: 'value',
-                  controller: amount,
-                  inputType: TextInputType.number,
-                ),
-              ],
-            );
-          }),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () {
-                DateTime now = DateTime.now();
-                String formattedTime =
-                    DateFormat('HH:mm').format(now); // 24-hour format
-                addFeed(int.parse(amount.text), DateTime.now().year,
-                    DateTime.now().month, DateTime.now().day, formattedTime);
-                Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => const AlarmScreen()));
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
