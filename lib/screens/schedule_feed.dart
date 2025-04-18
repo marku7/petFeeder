@@ -20,14 +20,38 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
   // configurations
   static const String ipAddress = '192.168.1.1';
   static const int port = 80;
+  bool isTesting = true; // Add testing mode flag
   
   bool isRepeated = false;
   TimeOfDay? _selectedTime;
   final gramsController = TextEditingController();
 
   Future<bool> sendScheduleToHardware(TimeOfDay time, int grams) async {
+    if (isTesting) {
+      // for testing
+      print('TEST MODE: Setting schedule for ${time.format(context)} with $grams grams');
+      print('TEST MODE: HTTP Request Details:');
+      print('URL: http://$ipAddress:$port/schedule');
+      print('Method: POST');
+      print('Body: {');
+      print('  "hour": "${time.hour}",');
+      print('  "minute": "${time.minute}",');
+      print('  "grams": "$grams"');
+      print('}');
+      await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
+      return true;
+    }
+
     try {
       print('Sending schedule to hardware: ${time.format(context)} with $grams grams');
+      print('HTTP Request Details:');
+      print('URL: http://$ipAddress:$port/schedule');
+      print('Method: POST');
+      print('Body: {');
+      print('  "hour": "${time.hour}",');
+      print('  "minute": "${time.minute}",');
+      print('  "grams": "$grams"');
+      print('}');
       
       final response = await http.post(
         Uri.parse('http://$ipAddress:$port/schedule'),
@@ -38,12 +62,19 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
         },
       );
 
-      print('Hardware response status: ${response.statusCode}');
-      print('Hardware response body: ${response.body}');
+      print('Hardware Response Details:');
+      print('Status Code: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      print('Response Body: ${response.body}');
       
       return response.statusCode == 200;
     } catch (e) {
       print('Error sending schedule to hardware: $e');
+      print('Error Details:');
+      print('IP Address: $ipAddress');
+      print('Port: $port');
+      print('Time: ${time.format(context)}');
+      print('Grams: $grams');
       return false;
     }
   }
@@ -67,6 +98,20 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
           color: Colors.white,
         ),
         actions: [
+          IconButton(
+            icon: Icon(isTesting ? Icons.bug_report : Icons.check),
+            onPressed: () {
+              setState(() {
+                isTesting = !isTesting;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(isTesting ? 'Testing mode ON' : 'Testing mode OFF'),
+                  backgroundColor: isTesting ? Colors.blue : Colors.green,
+                ),
+              );
+            },
+          ),
           IconButton(
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
@@ -186,6 +231,20 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                   },
                   label: 'Save',
                 ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Text('Testing Mode: '),
+                  Switch(
+                    value: isTesting,
+                    onChanged: (value) {
+                      setState(() {
+                        isTesting = value;
+                      });
+                    },
+                  ),
+                ],
               ),
             ],
           ),
