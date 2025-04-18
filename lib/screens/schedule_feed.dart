@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pet_feeder/screens/schedules_screen.dart';
 import 'package:pet_feeder/services/add_schedule_feed.dart';
 import 'package:pet_feeder/utils/colors.dart';
@@ -20,68 +20,15 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
   // configurations
   static const String ipAddress = '192.168.1.1';
   static const int port = 80;
-  bool isTesting = true; // Add testing mode flag
+  bool isTesting = true;
   
   bool isRepeated = false;
   TimeOfDay? _selectedTime;
-  final gramsController = TextEditingController();
-
-  Future<bool> sendScheduleToHardware(TimeOfDay time, int grams) async {
-    if (isTesting) {
-      // for testing
-      print('TEST MODE: Setting schedule for ${time.format(context)} with $grams grams');
-      print('TEST MODE: HTTP Request Details:');
-      print('URL: http://$ipAddress:$port/schedule');
-      print('Method: POST');
-      print('Body: {');
-      print('  "hour": "${time.hour}",');
-      print('  "minute": "${time.minute}",');
-      print('  "grams": "$grams"');
-      print('}');
-      await Future.delayed(const Duration(seconds: 2)); // Simulate network delay
-      return true;
-    }
-
-    try {
-      print('Sending schedule to hardware: ${time.format(context)} with $grams grams');
-      print('HTTP Request Details:');
-      print('URL: http://$ipAddress:$port/schedule');
-      print('Method: POST');
-      print('Body: {');
-      print('  "hour": "${time.hour}",');
-      print('  "minute": "${time.minute}",');
-      print('  "grams": "$grams"');
-      print('}');
-      
-      final response = await http.post(
-        Uri.parse('http://$ipAddress:$port/schedule'),
-        body: {
-          'hour': time.hour.toString(),
-          'minute': time.minute.toString(),
-          'grams': grams.toString(),
-        },
-      );
-
-      print('Hardware Response Details:');
-      print('Status Code: ${response.statusCode}');
-      print('Response Headers: ${response.headers}');
-      print('Response Body: ${response.body}');
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error sending schedule to hardware: $e');
-      print('Error Details:');
-      print('IP Address: $ipAddress');
-      print('Port: $port');
-      print('Time: ${time.format(context)}');
-      print('Grams: $grams');
-      return false;
-    }
-  }
+  final TextEditingController _gramsController = TextEditingController();
 
   @override
   void dispose() {
-    gramsController.dispose();
+    _gramsController.dispose();
     super.dispose();
   }
 
@@ -123,128 +70,163 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
           ),
         ],
       ),
-      body: Center(
+      body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Set Feeding Time',
+                'SCHEDULED FEED',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () async {
-                        TimeOfDay? selectedTime = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
+              SizedBox(
+                height: 300,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('Schedule Feed')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('Error loading schedules'));
+                    }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final schedules = snapshot.data?.docs ?? [];
+                    
+                    return ListView.builder(
+                      itemCount: schedules.length,
+                      itemBuilder: (context, index) {
+                        final schedule = schedules[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today),
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '100 grams (demo)',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${schedule['time']} | ${schedule['month']}/${schedule['day']}/${schedule['year']}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         );
-                        if (selectedTime != null) {
-                          setState(() {
-                            _selectedTime = selectedTime;
-                          });
-                          print('Selected time: ${selectedTime.format(context)}');
-                        }
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 16, horizontal: 16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _selectedTime != null
-                              ? 'Selected Time: ${_selectedTime!.format(context)}'
-                              : 'Select Time',
-                          style:
-                              TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextFieldWidget(
-                label: 'Amount (grams)',
-                controller: gramsController,
-                inputType: TextInputType.number,
-                hint: 'Enter amount in grams',
-              ),
-              const SizedBox(height: 32),
-              const Spacer(),
-              Center(
-                child: ButtonWidget(
-                  onPressed: () async {
-                    if (_selectedTime == null) {
-                      showToast('Please select a time first');
-                      return;
-                    }
-
-                    if (gramsController.text.isEmpty) {
-                      showToast('Please enter the amount of food');
-                      return;
-                    }
-
-                    int grams;
-                    try {
-                      grams = int.parse(gramsController.text);
-                      if (grams <= 0) {
-                        showToast('Please enter a valid amount');
-                        return;
-                      }
-                    } catch (e) {
-                      showToast('Please enter a valid number');
-                      return;
-                    }
-
-                    final hardwareSuccess = await sendScheduleToHardware(_selectedTime!, grams);
-                    
-                    if (!hardwareSuccess) {
-                      showToast('Failed to set schedule on hardware');
-                      return;
-                    }
-
-                    String formattedTime =
-                        '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
-                    
-                    print('Saving schedule locally: $formattedTime with $grams grams');
-                    addScheduledFeed(
-                      DateTime.now().year,
-                      DateTime.now().month,
-                      DateTime.now().day,
-                      formattedTime,
-                      grams
                     );
-                    
-                    showToast('Feed Schedule saved!');
-                    print('Schedule saved successfully');
                   },
-                  label: 'Save',
+                ),
+              ),
+              const Divider(),
+              const SizedBox(height: 20),
+              const Text(
+                'Create New Feeding Schedule',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Text('Testing Mode: '),
-                  Switch(
-                    value: isTesting,
-                    onChanged: (value) {
-                      setState(() {
-                        isTesting = value;
-                      });
-                    },
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  title: Text(
+                    _selectedTime != null
+                        ? '${_selectedTime!.format(context)}'
+                        : 'Selected Time:',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
                   ),
-                ],
+                  onTap: () async {
+                    TimeOfDay? selectedTime = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (selectedTime != null) {
+                      setState(() {
+                        _selectedTime = selectedTime;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextField(
+                  controller: _gramsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                    border: InputBorder.none,
+                    hintText: 'Amount (grams)',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[300],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: () {
+                    if (_selectedTime != null && _gramsController.text.isNotEmpty) {
+                      String formattedTime =
+                          '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+                      addScheduledFeed(
+                        DateTime.now().year,
+                        DateTime.now().month,
+                        DateTime.now().day,
+                        formattedTime,
+                        int.parse(_gramsController.text),
+                      );
+                      showToast('Feed Schedule saved!');
+                      _gramsController.clear();
+                      setState(() {
+                        _selectedTime = null;
+                      });
+                    } else {
+                      showToast('Please fill in all fields');
+                    }
+                  },
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
