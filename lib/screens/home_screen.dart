@@ -19,16 +19,8 @@ class _HomeScreenState extends State<HomeScreen> {
   // configurations
   static const String ipAddress = '192.168.1.1'; // ip address of arduino
   static const int port = 80; // port of arduino
-  bool isTesting = true;
 
   Future<bool> sendFeedCommand(int grams) async {
-    if (isTesting) {
-      print('Testing mode: Simulating feed command');
-      print('Sending feed command: $grams grams');
-      await Future.delayed(const Duration(seconds: 2));
-      return true;
-    }
-
     try {
       final response = await http.post(
       Uri.parse('http://$ipAddress:$port/feed'),
@@ -37,33 +29,11 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
-      print('Response status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
       return response.statusCode == 200;
     } catch (e) {
       print('Error sending feed command: $e');
       return false;
     }
-  }
-
-  Future<bool> testConnection() async {
-    if (isTesting) {
-      print('Testing mode: Simulating connection test');
-      await Future.delayed(const Duration(seconds: 2));
-      return true;
-    }
-
-    try {
-      final response = await http.get(
-        Uri.parse('http://$ipAddress:$port/status'),
-      );
-      print('Connection test response: ${response.statusCode}');
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Connection test failed: $e');
-      return false;
-    }
-    
   }
 
    showScheduleDialog() {
@@ -130,21 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          setState(() {
-            isTesting = !isTesting;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isTesting ? 'Testing mode enabled' : 'Testing mode disabled'),
-              backgroundColor: isTesting ? Colors.green : Colors.red,
-            ),
-          );
-        },
-        child: Icon(isTesting ? Icons.bug_report : Icons.check),
-      ),
       drawer: const DrawerWidget(),
       appBar: AppBar(
         foregroundColor: Colors.white,
