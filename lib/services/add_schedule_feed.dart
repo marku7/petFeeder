@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-Future addScheduledFeed(year, month, day, time) async {
+Future addScheduledFeed(year, month, day, time, grams) async {
   final docUser =
       FirebaseFirestore.instance.collection('Schedule Feed').doc(time);
 
@@ -9,6 +9,7 @@ Future addScheduledFeed(year, month, day, time) async {
     'month': month,
     'day': day,
     'time': time,
+    'grams': grams,
     'dateTime': DateTime.now(),
   };
 
