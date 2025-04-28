@@ -8,6 +8,7 @@ import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:pet_feeder/widgets/toast_widget.dart';
 import 'package:pet_feeder/widgets/textfield_widget.dart';
+import 'package:http/http.dart' as http;
 
 class ScheduleFeedScreen extends StatefulWidget {
   const ScheduleFeedScreen({super.key});
@@ -18,18 +19,52 @@ class ScheduleFeedScreen extends StatefulWidget {
 
 class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
   // configurations
-  static const String ipAddress = '192.168.1.1';
-  static const int port = 80;
-  bool isTesting = true;
-  
-  bool isRepeated = false;
+  static const String ipAddress = '192.168.43.128';
+  int selectedValue = 1;
   TimeOfDay? _selectedTime;
-  final TextEditingController _gramsController = TextEditingController();
 
-  @override
-  void dispose() {
-    _gramsController.dispose();
-    super.dispose();
+  int getGramsFromValue(int value) {
+    switch (value) {
+      case 1:
+        return 70;
+      case 2:
+        return 105;
+      case 3:
+        return 140;
+      case 4:
+        return 175;
+      case 5:
+        return 210;
+      default:
+        return 70;
+    }
+  }
+
+  Future<bool> sendScheduleCommand(String time, int seconds) async {
+    try {
+      print('Sending schedule command to hardware');
+      print('HTTP Request Details:');
+      print('URL: http://$ipAddress/scheduleOn/$time/$seconds');
+      print('Method: POST');
+      
+      final response = await http.post(
+        Uri.parse('http://$ipAddress/scheduleOn/$time/$seconds'),
+      );
+
+      print('Hardware Response Details:');
+      print('Status Code: ${response.statusCode}');
+      print('Response Headers: ${response.headers}');
+      print('Response Body: ${response.body}');
+      
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error sending schedule command: $e');
+      print('Error Details:');
+      print('IP Address: $ipAddress');
+      print('Time: $time');
+      print('Seconds: $seconds');
+      return false;
+    }
   }
 
   @override
@@ -45,20 +80,6 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
           color: Colors.white,
         ),
         actions: [
-          IconButton(
-            icon: Icon(isTesting ? Icons.bug_report : Icons.check),
-            onPressed: () {
-              setState(() {
-                isTesting = !isTesting;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(isTesting ? 'Testing mode ON' : 'Testing mode OFF'),
-                  backgroundColor: isTesting ? Colors.blue : Colors.green,
-                ),
-              );
-            },
-          ),
           IconButton(
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
@@ -114,7 +135,7 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '100 grams (demo)',
+                                    '${schedule['grams']} grams',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -156,7 +177,7 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                   title: Text(
                     _selectedTime != null
                         ? '${_selectedTime!.format(context)}'
-                        : 'Selected Time:',
+                        : 'Select Time',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 16,
@@ -181,14 +202,59 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                   border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: TextField(
-                  controller: _gramsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                    border: InputBorder.none,
-                    hintText: 'Amount (grams)',
-                  ),
+                child: Column(
+                  children: [
+                    RadioListTile<int>(
+                      title: const Text('70 grams (appx.)'),
+                      value: 1,
+                      groupValue: selectedValue,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedValue = value!;
+                        });
+                      },
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('105 grams (appx.)'),
+                      value: 2,
+                      groupValue: selectedValue,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedValue = value!;
+                        });
+                      },
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('140 grams (appx.)'),
+                      value: 3,
+                      groupValue: selectedValue,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedValue = value!;
+                        });
+                      },
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('175 grams (appx.)'),
+                      value: 4,
+                      groupValue: selectedValue,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedValue = value!;
+                        });
+                      },
+                    ),
+                    RadioListTile<int>(
+                      title: const Text('210 grams (appx.)'),
+                      value: 5,
+                      groupValue: selectedValue,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedValue = value!;
+                        });
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
@@ -199,24 +265,33 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                     backgroundColor: Colors.grey[300],
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () {
-                    if (_selectedTime != null && _gramsController.text.isNotEmpty) {
-                      String formattedTime =
-                          '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
-                      addScheduledFeed(
-                        DateTime.now().year,
-                        DateTime.now().month,
-                        DateTime.now().day,
-                        formattedTime,
-                        int.parse(_gramsController.text),
-                      );
-                      showToast('Feed Schedule saved!');
-                      _gramsController.clear();
-                      setState(() {
-                        _selectedTime = null;
-                      });
+                  onPressed: () async {
+                    if (_selectedTime != null) {
+                      final hour = _selectedTime!.hourOfPeriod;
+                      final minute = _selectedTime!.minute;
+                      final period = _selectedTime!.period == DayPeriod.am ? 'am' : 'pm';
+                      final formattedTime = '$hour:${minute.toString().padLeft(2, '0')}$period';
+
+                      final success = await sendScheduleCommand(formattedTime, selectedValue);
+
+                      if (success) {
+                        final grams = getGramsFromValue(selectedValue);
+
+                        await addScheduledFeed(
+                          formattedTime,
+                          grams
+                        );
+
+                        showToast('Feed Schedule saved!');
+                        setState(() {
+                          _selectedTime = null;
+                          selectedValue = 1;
+                        });
+                      } else {
+                        showToast('Failed to set schedule. Please check your connection.');
+                      }
                     } else {
-                      showToast('Please fill in all fields');
+                      showToast('Please select a time');
                     }
                   },
                   child: const Text(

@@ -17,19 +17,19 @@ class MyPetsScreen extends StatelessWidget {
         'name': 'Buddy',
         'age': '2',
         'breed': 'Golden Retriever',
-        'image': 'assets/images/logo.png',
+        'image': 'assets/images/icon.png',
       },
       {
         'name': 'Mittens',
         'age': '3',
         'breed': 'Siamese Cat',
-        'image': 'assets/images/logo.png',
+        'image': 'assets/images/icon.png',
       },
       {
         'name': 'Charlie',
         'age': '1',
         'breed': 'Beagle',
-        'image': 'assets/images/logo.png',
+        'image': 'assets/images/icon.png',
       },
     ];
 

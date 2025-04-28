@@ -1,7 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:pet_feeder/firebase_options.dart';
-import 'package:pet_feeder/screens/home_screen.dart';
+import 'package:pet_feeder/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,13 +14,12 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'Pet Feeder',
-      home: HomeScreen(),
+      debugShowCheckedModeBanner: false,
+      title: 'FeediPaw',
+      home: SplashScreen(),
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:pet_feeder/services/add_feed.dart';
 import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
-import 'package:pet_feeder/widgets/textfield_widget.dart';
 import 'package:http/http.dart' as http;
 
 class HomeScreen extends StatefulWidget {
@@ -17,33 +16,85 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // configurations
-  static const String ipAddress = '192.168.1.1'; // ip address of arduino
-  static const int port = 80; // port of arduino
-  bool isTesting = true; // testing mode
+  String ipAddress = '192.168.43.128';
+  int selectedValue = 1;
+  final TextEditingController _ipController = TextEditingController();
 
-  Future<bool> sendFeedCommand(int grams) async {
-    if (isTesting) {
-      print('TEST MODE: Sending feed command for $grams grams');
-      print('TEST MODE: HTTP Request Details:');
-      print('URL: http://$ipAddress:$port/feed');
-      print('Method: POST');
-      print('Body: {"grams": "$grams"}');
-      await Future.delayed(const Duration(seconds: 2));
-      return true;
+  @override
+  void initState() {
+    super.initState();
+    _ipController.text = ipAddress;
+  }
+
+  @override
+  void dispose() {
+    _ipController.dispose();
+    super.dispose();
+  }
+
+  void showIpDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Configure IP Address'),
+          content: TextField(
+            controller: _ipController,
+            decoration: const InputDecoration(
+              labelText: 'IP Address',
+              hintText: 'Enter device IP address',
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  ipAddress = _ipController.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('SAVE'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  int getGramsFromValue(int value) {
+    switch (value) {
+      case 1:
+        return 70;
+      case 2:
+        return 105;
+      case 3:
+        return 140;
+      case 4:
+        return 175;
+      case 5:
+        return 210;
+      default:
+        return 70;
     }
+  }
 
+  Future<bool> sendFeedCommand(int seconds) async {
     try {
-      print('Sending feed command to hardware: $grams grams');
+      print('Sending feed command to hardware: $seconds seconds');
       print('HTTP Request Details:');
-      print('URL: http://$ipAddress:$port/feed');
+      print('URL: http://$ipAddress/feederOn/$seconds');
       print('Method: POST');
-      print('Body: {"grams": "$grams"}');
       
       final response = await http.post(
-        Uri.parse('http://$ipAddress:$port/feed'),
-        body: {
-          'grams': grams.toString(),
-        },
+        Uri.parse('http://$ipAddress/feederOn/$seconds'),
       );
 
       print('Hardware Response Details:');
@@ -56,45 +107,74 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Error sending feed command: $e');
       print('Error Details:');
       print('IP Address: $ipAddress');
-      print('Port: $port');
-      print('Grams: $grams');
+      print('Seconds: $seconds');
       return false;
     }
   }
 
-  showScheduleDialog() {
-    bool isLoading = false; // Track loading state
+  void showScheduleDialog() {
+    bool isLoading = false;
 
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent dismissing while loading
-      builder: (context) {
+      barrierDismissible: false,
+      builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Input value (in grams)'),
+              title: const Text('Select Amount'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFieldWidget(
-                    label: 'value',
-                    controller: amount,
-                    inputType: TextInputType.number,
-                    enabled: !isLoading, // Disable input while loading
+                  RadioListTile<int>(
+                    title: const Text('70 grams (appx.)'),
+                    value: 1,
+                    groupValue: selectedValue,
+                    onChanged: isLoading ? null : (value) {
+                      setState(() {
+                        selectedValue = value!;
+                      });
+                    },
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      const Text('Testing Mode: '),
-                      Switch(
-                        value: isTesting,
-                        onChanged: isLoading ? null : (value) { // Disable switch while loading
-                          setState(() {
-                            isTesting = value;
-                          });
-                        },
-                      ),
-                    ],
+                  RadioListTile<int>(
+                    title: const Text('105 grams (appx.)'),
+                    value: 2,
+                    groupValue: selectedValue,
+                    onChanged: isLoading ? null : (value) {
+                      setState(() {
+                        selectedValue = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('140 grams (appx.)'),
+                    value: 3,
+                    groupValue: selectedValue,
+                    onChanged: isLoading ? null : (value) {
+                      setState(() {
+                        selectedValue = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('175 grams (appx.)'),
+                    value: 4,
+                    groupValue: selectedValue,
+                    onChanged: isLoading ? null : (value) {
+                      setState(() {
+                        selectedValue = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<int>(
+                    title: const Text('210 grams (appx.)'),
+                    value: 5,
+                    groupValue: selectedValue,
+                    onChanged: isLoading ? null : (value) {
+                      setState(() {
+                        selectedValue = value!;
+                      });
+                    },
                   ),
                   if (isLoading) ...[
                     const SizedBox(height: 10),
@@ -106,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isLoading ? null : () { // Disable cancel while loading
+                  onPressed: isLoading ? null : () {
                     Navigator.of(context).pop();
                   },
                   child: const Text('CANCEL'),
@@ -115,81 +195,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: isLoading
                       ? null
                       : () async {
-                          if (amount.text.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please enter an amount'),
-                                backgroundColor: Colors.red,
-                              ),
+                          setState(() {
+                            isLoading = true;
+                          });
+
+                          final success = await sendFeedCommand(selectedValue);
+                          
+                          Navigator.of(context).pop();
+
+                          if (success) {
+                            int grams = getGramsFromValue(selectedValue);
+
+                            await addFeed(
+                              grams,
                             );
-                            return;
+
+                            if (mounted) {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                builder: (context) => const ConfirmationScreen(),
+                              ));
+                            }
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to feed. Please check your connection and try again.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           }
 
-                          try {
-                            int grams = int.parse(amount.text);
-                            if (grams <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please enter a valid amount'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              return;
-                            }
-
-                            // Set loading state
+                          if (mounted) {
                             setState(() {
-                              isLoading = true;
+                              isLoading = false;
                             });
-
-                            final success = await sendFeedCommand(grams);
-
-                            // Close dialog immediately after successful command
-                            Navigator.of(context).pop();
-
-                            if (success) {
-                              DateTime now = DateTime.now();
-                              String formattedTime = DateFormat('HH:mm').format(now);
-
-                              addFeed(
-                                grams,
-                                DateTime.now().year,
-                                DateTime.now().month,
-                                DateTime.now().day,
-                                formattedTime
-                              );
-
-                              if (mounted) {
-                                Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (context) => const ConfirmationScreen()
-                                ));
-                              }
-                            } else {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Failed to send feed command. Please check your connection and try again.'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Please enter a valid number'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } finally {
-                            // Reset loading state if dialog is still open
-                            if (mounted) {
-                              setState(() {
-                                isLoading = false;
-                              });
-                            }
                           }
                         },
                   child: const Text('OK'),
@@ -210,34 +250,27 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
         backgroundColor: primary,
         title: TextWidget(
-          text: 'Pet Feeder',
+          text: 'FeediPaw',
           fontSize: 18,
           color: Colors.white,
         ),
-        actions: [
-          IconButton(
-            icon: Icon(isTesting ? Icons.bug_report : Icons.check),
-            onPressed: () {
-              setState(() {
-                isTesting = !isTesting;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(isTesting ? 'Testing mode ON' : 'Testing mode OFF'),
-                  backgroundColor: isTesting ? Colors.blue : Colors.green,
-                ),
-              );
-            },
-          ),
-        ],
       ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(top: 80.0),
+        child: FloatingActionButton(
+          mini: true,
+          onPressed: showIpDialog,
+          child: const Icon(Icons.broadcast_on_personal_outlined),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             TextWidget(
-              text: 'Feed Pet Now',
+              text: 'Press the Button to Feed',
               fontSize: 18,
               color: primary,
               fontFamily: 'Bold',
@@ -263,18 +296,9 @@ class _HomeScreenState extends State<HomeScreen> {
               color: Colors.black,
               fontFamily: 'Medium',
             ),
-            const SizedBox(height: 20),
-            TextWidget(
-              text: isTesting ? 'Testing Mode: ON' : 'Testing Mode: OFF',
-              fontSize: 14,
-              color: isTesting ? Colors.blue : Colors.green,
-              fontFamily: 'Medium',
-            ),
           ],
         ),
       ),
     );
   }
-
-  final amount = TextEditingController();
 }
