@@ -6,6 +6,7 @@ import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:http/http.dart' as http;
+import 'package:fluttertoast/fluttertoast.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,6 +60,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   ipAddress = _ipController.text;
                 });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Successfully changed to "$ipAddress"'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
                 Navigator.of(context).pop();
               },
               child: const Text('SAVE'),
@@ -88,13 +96,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<bool> sendFeedCommand(int seconds) async {
     try {
+      final feedUrl = 'http://$ipAddress/feeder/on/$seconds';
+      
       print('Sending feed command to hardware: $seconds seconds');
       print('HTTP Request Details:');
-      print('URL: http://$ipAddress/feederOn/$seconds');
+      print('URL: $feedUrl');
       print('Method: POST');
       
+      // Show toast with the URL
+      Fluttertoast.showToast(
+        msg: feedUrl,
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 3,
+        backgroundColor: Colors.black87,
+        textColor: Colors.white,
+        fontSize: 16.0
+      );
+      
       final response = await http.post(
-        Uri.parse('http://$ipAddress/feederOn/$seconds'),
+        Uri.parse(feedUrl),
       );
 
       print('Hardware Response Details:');
