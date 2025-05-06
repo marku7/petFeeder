@@ -9,7 +9,12 @@ import 'package:http/http.dart' as http;
 import 'package:fluttertoast/fluttertoast.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int? preselectedGrams;
+  
+  const HomeScreen({
+    super.key, 
+    this.preselectedGrams
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -25,6 +30,31 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _ipController.text = ipAddress;
+    
+    if (widget.preselectedGrams != null) {
+      selectedValue = _getValueFromGrams(widget.preselectedGrams!);
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _processFeedWithoutDialog();
+      });
+    }
+  }
+
+  int _getValueFromGrams(int grams) {
+    switch (grams) {
+      case 70:
+        return 1;
+      case 105:
+        return 2;
+      case 140:
+        return 3;
+      case 175:
+        return 4;
+      case 210:
+        return 5;
+      default:
+        return 1; 
+    }
   }
 
   @override
@@ -130,6 +160,30 @@ class _HomeScreenState extends State<HomeScreen> {
       print('IP Address: $ipAddress');
       print('Seconds: $seconds');
       return false;
+    }
+  }
+  
+  Future<void> _processFeedWithoutDialog() async {
+    bool success = await sendFeedCommand(selectedValue);
+    
+    if (success) {
+      int grams = getGramsFromValue(selectedValue);
+      await addFeed(grams);
+      
+      if (mounted) {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) => const ConfirmationScreen(),
+        ));
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to feed. Please check your connection and try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -291,7 +345,9 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             TextWidget(
-              text: 'Press the Button to Feed',
+              text: widget.preselectedGrams != null ? 
+                'Feeding ${widget.preselectedGrams} grams...' : 
+                'Press the Button to Feed',
               fontSize: 18,
               color: primary,
               fontFamily: 'Bold',
@@ -301,7 +357,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             GestureDetector(
               onTap: () {
+                if (widget.preselectedGrams == null) {
                 showScheduleDialog();
+                }
               },
               child: Image.asset(
                 'assets/images/Capture.png',

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
+import 'package:pet_feeder/main.dart' as main_app;
 import 'package:pet_feeder/screens/schedules_screen.dart';
-import 'package:pet_feeder/services/add_schedule_feed.dart';
+import 'package:pet_feeder/screens/feed_alarm_screen.dart';
+import 'package:pet_feeder/services/local_storage_service.dart';
+import 'package:pet_feeder/services/notification_service.dart';
 import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/button_widget.dart';
 import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:pet_feeder/widgets/toast_widget.dart';
 import 'package:pet_feeder/widgets/textfield_widget.dart';
-import 'package:http/http.dart' as http;
 
 class ScheduleFeedScreen extends StatefulWidget {
   const ScheduleFeedScreen({super.key});
@@ -18,10 +21,91 @@ class ScheduleFeedScreen extends StatefulWidget {
 }
 
 class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
-  // configurations
-  static const String ipAddress = '192.168.43.128';
+  final LocalStorageService _storageService = LocalStorageService();
+  List<FeedSchedule> _schedules = [];
+  bool _isLoading = true;
   int selectedValue = 1;
   TimeOfDay? _selectedTime;
+  DateTime _selectedDate = DateTime.now();
+  bool _shouldCheckActiveSchedules = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadSchedules();
+  }
+
+  Future<void> _loadSchedules() async {
+    setState(() {
+      _isLoading = true;
+      _shouldCheckActiveSchedules = false;
+    });
+    
+    try {
+      await _storageService.removeCompletedSchedules();
+      
+      final schedules = await _storageService.getSchedules();
+      
+      setState(() {
+        _schedules = schedules;
+        _isLoading = false;
+        _shouldCheckActiveSchedules = true;
+      });
+      
+      if (_shouldCheckActiveSchedules) {
+        _checkActiveSchedules();
+      }
+    } catch (e) {
+      print("ERROR [ScheduleFeed]: Error loading schedules: $e");
+      setState(() {
+        _isLoading = false;
+        _shouldCheckActiveSchedules = true;
+      });
+    }
+  }
+  
+  void _checkActiveSchedules() {
+    final now = DateTime.now();
+    
+    final String formattedHour = now.hour == 0 ? "12" : 
+                               (now.hour > 12 ? "${now.hour - 12}" : "${now.hour}");
+    final String formattedMinute = now.minute.toString().padLeft(2, '0');
+    final String period = now.hour < 12 ? 'am' : 'pm';
+    final String currentTime = "$formattedHour:$formattedMinute$period";
+    final String currentDate = DateFormat('MMM d, yyyy').format(now);
+    
+    print("DEBUG [ScheduleFeed]: Checking active schedules. Current time: $currentTime, Date: $currentDate");
+    
+    if (_schedules.isEmpty) {
+      return;
+    }
+    
+    print("DEBUG [ScheduleFeed]: Available schedules: ${_schedules.map((s) => '${s.time} on ${s.date}').toList()}");
+
+    for (var schedule in _schedules) {
+      if (schedule.time == currentTime && !_isLoading) {
+        final DateTime nextOccurrence = schedule.getNextOccurrence();
+        final bool isDueNow = now.difference(nextOccurrence).inMinutes.abs() <= 1;
+        
+        if (isDueNow) {
+          print("DEBUG [ScheduleFeed]: Found matching schedule! Time: ${schedule.time}, Date: ${schedule.date}, Grams: ${schedule.grams}");
+          WidgetsBinding.instance.addPostFrameCallback(
+            (timeStamp) {
+              print("DEBUG [ScheduleFeed]: Launching feed alarm screen for ${schedule.time} on ${schedule.date}");
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => FeedAlarmScreen(schedule: schedule),
+              ));
+            },
+          );
+          break;
+        }
+      }
+    }
+  }
+  
+  Future<void> _refreshScheduleCountdown() async {
+    await main_app.refreshScheduleCountdown();
+  }
 
   int getGramsFromValue(int value) {
     switch (value) {
@@ -37,33 +121,6 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
         return 210;
       default:
         return 70;
-    }
-  }
-
-  Future<bool> sendScheduleCommand(String time, int seconds) async {
-    try {
-      print('Sending schedule command to hardware');
-      print('HTTP Request Details:');
-      print('URL: http://$ipAddress/scheduleOn/$time/$seconds');
-      print('Method: POST');
-      
-      final response = await http.post(
-        Uri.parse('http://$ipAddress/scheduleOn/$time/$seconds'),
-      );
-
-      print('Hardware Response Details:');
-      print('Status Code: ${response.statusCode}');
-      print('Response Headers: ${response.headers}');
-      print('Response Body: ${response.body}');
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error sending schedule command: $e');
-      print('Error Details:');
-      print('IP Address: $ipAddress');
-      print('Time: $time');
-      print('Seconds: $seconds');
-      return false;
     }
   }
 
@@ -83,10 +140,33 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
           IconButton(
             onPressed: () {
               Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const SchedulesScreen()));
+                  builder: (context) => const SchedulesScreen())).then((_) {
+                _loadSchedules();
+                _refreshScheduleCountdown();
+              });
             },
             icon: const Icon(
               Icons.calendar_month,
+            ),
+          ),
+          IconButton(
+            onPressed: () async {
+              setState(() {
+                _shouldCheckActiveSchedules = false;
+              });
+              
+              await _loadSchedules();
+              await _refreshScheduleCountdown();
+              
+              // Re-enable after a short delay
+              Future.delayed(const Duration(milliseconds: 500), () {
+                setState(() {
+                  _shouldCheckActiveSchedules = true;
+                });
+              });
+            },
+            icon: const Icon(
+              Icons.refresh,
             ),
           ),
         ],
@@ -107,27 +187,20 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
               const SizedBox(height: 16),
               SizedBox(
                 height: 300,
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('Schedule Feed')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return const Center(child: Text('Error loading schedules'));
-                    }
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final schedules = snapshot.data?.docs ?? [];
-                    
-                    return ListView.builder(
-                      itemCount: schedules.length,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _schedules.isEmpty
+                        ? const Center(child: Text('No schedules'))
+                        : ListView.builder(
+                            itemCount: _schedules.length,
                       itemBuilder: (context, index) {
-                        final schedule = schedules[index];
+                              final schedule = _schedules[index];
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
                             children: [
                               const Icon(Icons.calendar_today),
                               const SizedBox(width: 16),
@@ -135,14 +208,14 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${schedule['grams']} grams',
+                                              '${schedule.grams} grams',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
-                                    '${schedule['time']} | ${schedule['month']}/${schedule['day']}/${schedule['year']}',
+                                              '${schedule.time} - ${schedule.date}',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
@@ -152,8 +225,17 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                               ),
                             ],
                           ),
-                        );
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () async {
+                                        await _storageService.deleteSchedule(schedule.time, schedule.date);
+                                        showToast('Schedule deleted');
+                                        _loadSchedules();
+                                        _refreshScheduleCountdown();
                       },
+                                    ),
+                                  ],
+                                ),
                     );
                   },
                 ),
@@ -191,6 +273,36 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                     if (selectedTime != null) {
                       setState(() {
                         _selectedTime = selectedTime;
+                      });
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListTile(
+                  title: Text(
+                    DateFormat('MMM d, yyyy').format(_selectedDate),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 16,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    DateTime? pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (pickedDate != null) {
+                      setState(() {
+                        _selectedDate = pickedDate;
                       });
                     }
                   },
@@ -262,42 +374,61 @@ class _ScheduleFeedScreenState extends State<ScheduleFeedScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[300],
+                    backgroundColor: _selectedTime != null ? primary : Colors.grey[300],
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  onPressed: () async {
-                    if (_selectedTime != null) {
+                  onPressed: _selectedTime == null ? null : () async {
                       final hour = _selectedTime!.hourOfPeriod;
                       final minute = _selectedTime!.minute;
                       final period = _selectedTime!.period == DayPeriod.am ? 'am' : 'pm';
                       final formattedTime = '$hour:${minute.toString().padLeft(2, '0')}$period';
+                      final formattedDate = DateFormat('MMM d, yyyy').format(_selectedDate);
+                      final grams = getGramsFromValue(selectedValue);
 
-                      final success = await sendScheduleCommand(formattedTime, selectedValue);
+                    final schedule = FeedSchedule(
+                      time: formattedTime,
+                      grams: grams,
+                      createdAt: DateTime.now(),
+                      date: formattedDate,
+                    );
+                    
+                    if (schedule.isPast()) {
+                      showToast('Cannot schedule a time that has already passed for the selected date');
+                      return;
+                    }
+                    
+                    final minutesUntil = schedule.getMinutesUntilDue();
+                    
+                    await _storageService.saveSchedule(schedule);
 
-                      if (success) {
-                        final grams = getGramsFromValue(selectedValue);
-
-                        await addScheduledFeed(
+                    await NotificationService().scheduleFeedNotification(
                           formattedTime,
-                          grams
+                          grams,
+                          formattedDate
                         );
 
-                        showToast('Feed Schedule saved!');
+                    // Show more informative toast message
+                    if (minutesUntil < 1) {
+                      showToast('Feed scheduled for right now!');
+                    } else if (minutesUntil == 1) {
+                      showToast('Feed scheduled in 1 minute. Notification will appear shortly!');
+                    } else {
+                      showToast('Feed scheduled for $formattedTime on $formattedDate.');
+                    }
+                    
                         setState(() {
                           _selectedTime = null;
+                          _selectedDate = DateTime.now();
                           selectedValue = 1;
                         });
-                      } else {
-                        showToast('Failed to set schedule. Please check your connection.');
-                      }
-                    } else {
-                      showToast('Please select a time');
-                    }
+                    
+                    _loadSchedules();
+                    _refreshScheduleCountdown();
                   },
-                  child: const Text(
+                  child: Text(
                     'Save',
                     style: TextStyle(
-                      color: Colors.black,
+                      color: _selectedTime != null ? Colors.white : Colors.black,
                       fontSize: 16,
                     ),
                   ),

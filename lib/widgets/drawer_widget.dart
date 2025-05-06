@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pet_feeder/screens/add_pet_screen.dart';
 import 'package:pet_feeder/screens/analytics_screen.dart';
+import 'package:pet_feeder/screens/camera_screen.dart';
 import 'package:pet_feeder/screens/distance_screen.dart';
 import 'package:pet_feeder/screens/history_screen.dart';
 import 'package:pet_feeder/screens/home_screen.dart';
@@ -85,9 +86,9 @@ class _MyDrawerState extends State<DrawerWidget> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.social_distance),
+              leading: const Icon(Icons.storage),
               title: TextWidget(
-                text: 'Distance',
+                text: 'Food Level',
                 fontSize: 12,
                 color: Colors.black,
                 fontFamily: 'Bold',
@@ -100,7 +101,7 @@ class _MyDrawerState extends State<DrawerWidget> {
             ListTile(
               leading: const Icon(Icons.heat_pump_outlined),
               title: TextWidget(
-                text: 'Temperature',
+                text: 'Pet Temperature',
                 fontSize: 12,
                 color: Colors.black,
                 fontFamily: 'Bold',
@@ -147,6 +148,19 @@ class _MyDrawerState extends State<DrawerWidget> {
               onTap: () {
                 Navigator.of(context).pushReplacement(MaterialPageRoute(
                     builder: (context) => const AnalyticsScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: TextWidget(
+                text: 'Live Monitoring',
+                fontSize: 12,
+                color: Colors.black,
+                fontFamily: 'Bold',
+              ),
+              onTap: () {
+                Navigator.of(context).pushReplacement(MaterialPageRoute(
+                    builder: (context) => const CameraScreen()));
               },
             ),
           ],

@@ -1,14 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:pet_feeder/services/local_storage_service.dart';
 
-Future addScheduledFeed(time, grams) async {
-  final docUser =
-      FirebaseFirestore.instance.collection('Schedule Feed').doc(time);
+Future addScheduledFeed(String time, int grams) async {
+  final schedule = FeedSchedule(
+    time: time,
+    grams: grams,
+    createdAt: DateTime.now(),
+    date: DateFormat('MMM d, yyyy').format(DateTime.now()),
+  );
 
-  final json = {
-    'grams': grams,
-    'time': time,
-    'dateTime': DateTime.now(),
-  };
-
-  await docUser.set(json);
+  await LocalStorageService().saveSchedule(schedule);
+  return true;
 }
