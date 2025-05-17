@@ -7,6 +7,7 @@ import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -20,12 +21,63 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   DateTime? temperatureTimestamp;
   double? currentFoodLevel;
   DateTime? foodLevelTimestamp;
+  
+  Map<String, double> temperatureHistory = {};
+  Map<String, double> foodLevelHistory = {};
 
   @override
   void initState() {
     super.initState();
-    fetchTemperatureData();
-    fetchFoodLevelData();
+    loadStoredData().then((_) {
+      fetchTemperatureData();
+      fetchFoodLevelData();
+    });
+  }
+  
+  Future<void> loadStoredData() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    final tempKeys = prefs.getKeys().where((key) => key.startsWith('temp_')).toList();
+    for (var key in tempKeys) {
+      final dateStr = key.substring(5);
+      final value = prefs.getDouble(key) ?? 0.0;
+      temperatureHistory[dateStr] = value;
+    }
+    
+    final foodKeys = prefs.getKeys().where((key) => key.startsWith('food_')).toList();
+    for (var key in foodKeys) {
+      final dateStr = key.substring(5);
+      final value = prefs.getDouble(key) ?? 0.0;
+      foodLevelHistory[dateStr] = value;
+    }
+    
+    setState(() {});
+  }
+  
+  Future<void> storeTemperatureData(DateTime timestamp, double value) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(timestamp);
+    
+    if (!temperatureHistory.containsKey(dateStr)) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('temp_$dateStr', value);
+      
+      setState(() {
+        temperatureHistory[dateStr] = value;
+      });
+    }
+  }
+  
+  Future<void> storeFoodLevelData(DateTime timestamp, double value) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(timestamp);
+  
+    if (!foodLevelHistory.containsKey(dateStr)) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('food_$dateStr', value);
+      
+      setState(() {
+        foodLevelHistory[dateStr] = value;
+      });
+    }
   }
 
   Future<void> fetchTemperatureData() async {
@@ -35,11 +87,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
+        final temp = double.tryParse(data['temperature']?.toString() ?? '0');
+        int timestamp = int.tryParse(data['timestamp']?.toString() ?? '0') ?? 0;
+        final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        
         setState(() {
-          currentTemperature = double.tryParse(data['temperature']?.toString() ?? '0');
-          int timestamp = int.tryParse(data['timestamp']?.toString() ?? '0') ?? 0;
-          temperatureTimestamp = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+          currentTemperature = temp;
+          temperatureTimestamp = date;
         });
+        
+        if (temp != null) {
+          await storeTemperatureData(date, temp);
+        }
       }
       print(currentTemperature);
     } catch (e) {
@@ -54,11 +113,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
+        final foodLevel = (double.tryParse(data['distance']?.toString() ?? '0') ?? 0) / 10;
+        int timestamp = int.tryParse(data['timestamp']?.toString() ?? '0') ?? 0;
+        final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+        
         setState(() {
-          currentFoodLevel = (double.tryParse(data['distance']?.toString() ?? '0') ?? 0) / 10;
-          int timestamp = int.tryParse(data['timestamp']?.toString() ?? '0') ?? 0;
-          foodLevelTimestamp = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+          currentFoodLevel = foodLevel;
+          foodLevelTimestamp = date;
         });
+        
+        await storeFoodLevelData(date, foodLevel);
       }
     } catch (e) {
       print('Error fetching food level data: $e');
@@ -112,11 +176,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     final DateTime now = DateTime.now();
-    final List<DateTime> lastThreeDays = [
-      now,
-      now.subtract(const Duration(days: 1)),
-      now.subtract(const Duration(days: 2)),
-    ];
+    final List<DateTime> lastFourDays = List.generate(4, (index) => 
+      now.subtract(Duration(days: index))
+    ).reversed.toList();
 
     return Scaffold(
       drawer: const DrawerWidget(),
@@ -142,18 +204,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 10),
               Builder(builder: (context) {
-                List<SalesData> tempChartData = lastThreeDays.map((day) {
+                List<SalesData> tempChartData = lastFourDays.map((day) {
                   double temp = 25.0;
                   
-                  if (temperatureTimestamp != null && 
-                      day.year == temperatureTimestamp!.year &&
-                      day.month == temperatureTimestamp!.month &&
-                      day.day == temperatureTimestamp!.day) {
-                    temp = currentTemperature ?? temp;
+                  String dateKey = DateFormat('yyyy-MM-dd').format(day);
+                  
+                  if (temperatureHistory.containsKey(dateKey)) {
+                    temp = temperatureHistory[dateKey]!;
+                  }
+                  else if (day.year == now.year && day.month == now.month && day.day == now.day && 
+                      temperatureTimestamp != null && currentTemperature != null) {
+                    temp = currentTemperature!;
                   }
                   
                   return SalesData(getDayLabel(day), temp);
-                }).toList().reversed.toList();
+                }).toList();
                 
                 return Container(
                   padding: const EdgeInsets.all(16),
@@ -191,18 +256,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 10),
               Builder(builder: (context) {
-                List<SalesData> foodLevelChartData = lastThreeDays.map((day) {
+                List<SalesData> foodLevelChartData = lastFourDays.map((day) {
                   double foodLevel = 15.0;
                   
-                  if (foodLevelTimestamp != null && 
-                      day.year == foodLevelTimestamp!.year &&
-                      day.month == foodLevelTimestamp!.month &&
-                      day.day == foodLevelTimestamp!.day) {
-                    foodLevel = currentFoodLevel ?? foodLevel;
+                  String dateKey = DateFormat('yyyy-MM-dd').format(day);
+                  
+                  if (foodLevelHistory.containsKey(dateKey)) {
+                    foodLevel = foodLevelHistory[dateKey]!;
+                  }
+                  else if (day.year == now.year && day.month == now.month && day.day == now.day && 
+                      foodLevelTimestamp != null && currentFoodLevel != null) {
+                    foodLevel = currentFoodLevel!;
                   }
                   
                   return SalesData(getDayLabel(day), foodLevel);
-                }).toList().reversed.toList();
+                }).toList();
                 
                 return Column(
                   children: [
