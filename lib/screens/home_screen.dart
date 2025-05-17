@@ -7,6 +7,7 @@ import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   final int? preselectedGrams;
@@ -21,15 +22,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // configurations
   String ipAddress = '192.168.43.128';
   int selectedValue = 1;
   final TextEditingController _ipController = TextEditingController();
+  static const String _ipAddressKey = 'ip_address';
 
   @override
   void initState() {
     super.initState();
-    _ipController.text = ipAddress;
+    _loadSavedIpAddress();
     
     if (widget.preselectedGrams != null) {
       selectedValue = _getValueFromGrams(widget.preselectedGrams!);
@@ -38,6 +39,25 @@ class _HomeScreenState extends State<HomeScreen> {
         _processFeedWithoutDialog();
       });
     }
+  }
+
+  Future<void> _loadSavedIpAddress() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? savedIp = prefs.getString(_ipAddressKey);
+    
+    if (savedIp != null && savedIp.isNotEmpty) {
+      setState(() {
+        ipAddress = savedIp;
+        _ipController.text = ipAddress;
+      });
+    } else {
+      _ipController.text = ipAddress;
+    }
+  }
+
+  Future<void> _saveIpAddress(String ip) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ipAddressKey, ip);
   }
 
   int _getValueFromGrams(int grams) {
@@ -86,10 +106,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text('CANCEL'),
             ),
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                final newIp = _ipController.text;
                 setState(() {
-                  ipAddress = _ipController.text;
+                  ipAddress = newIp;
                 });
+                await _saveIpAddress(newIp);
+                
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Successfully changed to "$ipAddress"'),
@@ -133,7 +156,6 @@ class _HomeScreenState extends State<HomeScreen> {
       print('URL: $feedUrl');
       print('Method: POST');
       
-      // Show toast with the URL
       Fluttertoast.showToast(
         msg: feedUrl,
         toastLength: Toast.LENGTH_LONG,
