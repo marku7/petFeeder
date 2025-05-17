@@ -18,14 +18,14 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   double? currentTemperature;
   DateTime? temperatureTimestamp;
-  double? currentDistance;
-  DateTime? distanceTimestamp;
+  double? currentFoodLevel;
+  DateTime? foodLevelTimestamp;
 
   @override
   void initState() {
     super.initState();
     fetchTemperatureData();
-    fetchDistanceData();
+    fetchFoodLevelData();
   }
 
   Future<void> fetchTemperatureData() async {
@@ -47,7 +47,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
-  Future<void> fetchDistanceData() async {
+  Future<void> fetchFoodLevelData() async {
     try {
       final ref = FirebaseDatabase.instance.ref();
       final snapshot = await ref.child('distance').get();
@@ -55,27 +55,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
         setState(() {
-          // Parse distance string to double and convert to cm
-          currentDistance = double.tryParse(data['distance']?.toString() ?? '0')?.toDouble() ?? 0;
-          // Parse timestamp string to int then to DateTime
+          currentFoodLevel = (double.tryParse(data['distance']?.toString() ?? '0') ?? 0) / 10;
           int timestamp = int.tryParse(data['timestamp']?.toString() ?? '0') ?? 0;
-          distanceTimestamp = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+          foodLevelTimestamp = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
         });
       }
     } catch (e) {
-      print('Error fetching distance data: $e');
+      print('Error fetching food level data: $e');
     }
   }
 
-  String getFoodLevel(double distanceInMm) {
-    double distanceInCm = distanceInMm / 10;
+  String getFoodLevelStatus(double distanceInCm) {
     if (distanceInCm <= 5) return 'High';
     if (distanceInCm <= 10) return 'Medium';
     return 'Low';
   }
 
-  Color getLevelColor(double distanceInMm) {
-    double distanceInCm = distanceInMm / 10;
+  Color getLevelColor(double distanceInCm) {
     if (distanceInCm <= 5) return Colors.green;
     if (distanceInCm <= 10) return Colors.orange;
     return Colors.red;
@@ -101,10 +97,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
+  String getDayLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateDay = DateTime(date.year, date.month, date.day);
+    final difference = today.difference(dateDay).inDays;
+    
+    if (difference == 0) return 'Today';
+    if (difference == 1) return 'Yesterday';
+    
+    return DateFormat('E').format(date);
+  }
+
   @override
   Widget build(BuildContext context) {
-    DateTime now = DateTime.now();
-    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final DateTime now = DateTime.now();
+    final List<DateTime> lastThreeDays = [
+      now,
+      now.subtract(const Duration(days: 1)),
+      now.subtract(const Duration(days: 2)),
+    ];
 
     return Scaffold(
       drawer: const DrawerWidget(),
@@ -112,7 +124,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         foregroundColor: Colors.white,
         backgroundColor: primary,
         title: TextWidget(
-          text: 'Pet Feeder',
+          text: 'Analytics',
           fontSize: 18,
           color: Colors.white,
         ),
@@ -130,9 +142,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 10),
               Builder(builder: (context) {
-                List<SalesData> chartData = List.generate(7, (index) {
-                  DateTime day = startOfWeek.add(Duration(days: index));
-                  double temp = currentTemperature ?? 0.0;
+                List<SalesData> tempChartData = lastThreeDays.map((day) {
+                  double temp = 25.0;
                   
                   if (temperatureTimestamp != null && 
                       day.year == temperatureTimestamp!.year &&
@@ -140,30 +151,28 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       day.day == temperatureTimestamp!.day) {
                     temp = currentTemperature ?? temp;
                   }
-                  print(currentTemperature);
                   
-                  return SalesData(day, temp);
-                });
-
+                  return SalesData(getDayLabel(day), temp);
+                }).toList().reversed.toList();
+                
                 return Container(
                   padding: const EdgeInsets.all(16),
                   child: SfCartesianChart(
-                    primaryXAxis: DateTimeAxis(
-                      intervalType: DateTimeIntervalType.days,
-                      dateFormat: DateFormat.E(),
+                    primaryXAxis: CategoryAxis(
                       majorGridLines: const MajorGridLines(width: 0),
                     ),
-                    primaryYAxis: const NumericAxis(
+                    primaryYAxis: NumericAxis(
                       title: AxisTitle(text: "Temperature (°C)"),
                       minimum: 20,
                       maximum: 40,
+                      interval: 5,
                     ),
                     series: <CartesianSeries>[
-                      LineSeries<SalesData, DateTime>(
-                        dataSource: chartData,
-                        xValueMapper: (SalesData sales, _) => sales.year,
-                        yValueMapper: (SalesData sales, _) => sales.sales,
-                        color: secondary,
+                      LineSeries<SalesData, String>(
+                        dataSource: tempChartData,
+                        xValueMapper: (SalesData sales, _) => sales.day,
+                        yValueMapper: (SalesData sales, _) => sales.value,
+                        color: primary,
                         markerSettings: const MarkerSettings(isVisible: true),
                         dataLabelSettings: const DataLabelSettings(
                           isVisible: true,
@@ -182,41 +191,39 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ),
               const SizedBox(height: 10),
               Builder(builder: (context) {
-                List<SalesData> chartData = List.generate(7, (index) {
-                  DateTime day = startOfWeek.add(Duration(days: index));
-                  double distance = 150;
+                List<SalesData> foodLevelChartData = lastThreeDays.map((day) {
+                  double foodLevel = 15.0;
                   
-                  if (distanceTimestamp != null && 
-                      day.year == distanceTimestamp!.year &&
-                      day.month == distanceTimestamp!.month &&
-                      day.day == distanceTimestamp!.day) {
-                    distance = currentDistance ?? distance;
+                  if (foodLevelTimestamp != null && 
+                      day.year == foodLevelTimestamp!.year &&
+                      day.month == foodLevelTimestamp!.month &&
+                      day.day == foodLevelTimestamp!.day) {
+                    foodLevel = currentFoodLevel ?? foodLevel;
                   }
                   
-                  return SalesData(day, distance);
-                });
-
+                  return SalesData(getDayLabel(day), foodLevel);
+                }).toList().reversed.toList();
+                
                 return Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(16),
                       child: SfCartesianChart(
-                        primaryXAxis: DateTimeAxis(
-                          intervalType: DateTimeIntervalType.days,
-                          dateFormat: DateFormat.E(),
+                        primaryXAxis: CategoryAxis(
                           majorGridLines: const MajorGridLines(width: 0),
                         ),
-                        primaryYAxis: const NumericAxis(
-                          title: AxisTitle(text: "Distance (mm)"),
+                        primaryYAxis: NumericAxis(
+                          title: AxisTitle(text: "Food Level (cm)"),
                           minimum: 0,
-                          maximum: 200,
+                          maximum: 20,
+                          interval: 5,
                         ),
                         series: <CartesianSeries>[
-                          LineSeries<SalesData, DateTime>(
-                            dataSource: chartData,
-                            xValueMapper: (SalesData sales, _) => sales.year,
-                            yValueMapper: (SalesData sales, _) => sales.sales,
-                            color: secondary,
+                          LineSeries<SalesData, String>(
+                            dataSource: foodLevelChartData,
+                            xValueMapper: (SalesData sales, _) => sales.day,
+                            yValueMapper: (SalesData sales, _) => sales.value,
+                            color: primary,
                             markerSettings: const MarkerSettings(isVisible: true),
                             dataLabelSettings: DataLabelSettings(
                               isVisible: true,
@@ -225,11 +232,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: getLevelColor(data.sales),
+                                    color: getLevelColor(data.value),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    '${(data.sales / 10).toStringAsFixed(1)}cm\n${getFoodLevel(data.sales)}',
+                                    '${data.value.toStringAsFixed(1)}cm\n${getFoodLevelStatus(data.value)}',
                                     style: const TextStyle(color: Colors.white, fontSize: 10),
                                     textAlign: TextAlign.center,
                                   ),
@@ -265,7 +272,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 }
 
 class SalesData {
-  SalesData(this.year, this.sales);
-  final DateTime year;
-  final double sales;
+  SalesData(this.day, this.value);
+  final String day;
+  final double value;
 }
