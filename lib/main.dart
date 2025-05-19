@@ -6,8 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:pet_feeder/firebase_options.dart';
 import 'package:pet_feeder/screens/feed_alarm_screen.dart';
 import 'package:pet_feeder/screens/splash_screen.dart';
+import 'package:pet_feeder/screens/notification_screen.dart';
 import 'package:pet_feeder/services/local_storage_service.dart';
 import 'package:pet_feeder/services/notification_service.dart';
+import 'package:pet_feeder/services/pet_detection_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 Timer? _scheduleTimer;
@@ -26,6 +28,9 @@ void main() async {
     print("DEBUG [Main]: Notification service initialized");
     
     setupNotificationClickHandling();
+    
+    await PetDetectionService().startMonitoring();
+    print("DEBUG [Main]: Pet detection service started");
     
     await Firebase.initializeApp(
       name: 'petfeeding-41649',
@@ -61,7 +66,27 @@ void setupNotificationClickHandling() {
       
       if (details.notificationResponse?.payload != null) {
         handleNotificationPayload(details.notificationResponse!.payload!);
+      } else {
+        if (navigatorKey.currentState != null) {
+          navigatorKey.currentState!.push(
+            MaterialPageRoute(
+              builder: (context) => const NotificationScreen(),
+            ),
+          );
+        }
       }
+    }
+  });
+}
+
+void openPetDetectionScreen() {
+  Future.delayed(const Duration(milliseconds: 500), () {
+    if (navigatorKey.currentState != null) {
+      navigatorKey.currentState!.push(
+        MaterialPageRoute(
+          builder: (context) => const NotificationScreen(),
+        ),
+      );
     }
   });
 }

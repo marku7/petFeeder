@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:pet_feeder/services/local_storage_service.dart';
 import 'package:pet_feeder/screens/feed_alarm_screen.dart';
 import 'package:pet_feeder/screens/home_screen.dart';
+import 'package:pet_feeder/screens/notification_screen.dart';
 import 'package:pet_feeder/main.dart' as main_app;
 
 class NotificationService {
@@ -29,7 +30,6 @@ class NotificationService {
   static const String exactTimeNotif = "EXACT_TIME";
 
   Future<void> initialize() async {
-    print("DEBUG [NotificationService]: Initializing notification service");
     tz_init.initializeTimeZones();
     
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -51,19 +51,25 @@ class NotificationService {
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        _handleNotificationResponse(response);
+        print("DEBUG [NotificationService]: Notification tapped: ${response.id}");
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (main_app.navigatorKey.currentState != null) {
+            main_app.navigatorKey.currentState!.push(
+              MaterialPageRoute(
+                builder: (context) => const NotificationScreen(),
+              ),
+            );
+          }
+        });
       },
-      onDidReceiveBackgroundNotificationResponse: _handleBackgroundNotificationResponse,
     );
     
     await _createNotificationChannel();
     await _requestPermissions();
-    
-    print("DEBUG [NotificationService]: Notification service initialized successfully");
   }
   
   void _handleNotificationResponse(NotificationResponse response) {
-    print("DEBUG [NotificationService]: Received notification response: ${response.id}, ${response.payload}");
+    print("DEBUG [NotificationService]: Handling notification response: ${response.id}, ${response.payload}");
     
     if (response.payload != null) {
       try {
@@ -73,19 +79,24 @@ class NotificationService {
           final grams = int.parse(payloadData[1]);
           final date = payloadData[2];
           
-          print("DEBUG [NotificationService]: Extracted payload - time: $time, grams: $grams, date: $date");
-          
           _storageService.deleteSchedule(time, date);
           
           if (response.notificationResponseType == NotificationResponseType.selectedNotification) {
             navigateToFeedAlarmScreen(time, grams, date);
           } else {
-            print("DEBUG [NotificationService]: Notification handled differently - deleting schedule");
             main_app.refreshScheduleCountdown();
           }
         }
       } catch (e) {
         print("ERROR [NotificationService]: Error parsing notification payload: $e");
+      }
+    } else {
+      if (main_app.navigatorKey.currentState != null) {
+        main_app.navigatorKey.currentState!.push(
+          MaterialPageRoute(
+            builder: (context) => const NotificationScreen(),
+          ),
+        );
       }
     }
   }
@@ -325,5 +336,37 @@ class NotificationService {
     );
     
     print("DEBUG [NotificationService]: Test notification sent successfully");
+  }
+
+  Future<void> showPetDetectionNotification() async {
+    const androidDetails = AndroidNotificationDetails(
+      'pet_detection_channel',
+      'Pet Detection',
+      channelDescription: 'Notifications for pet detection',
+      importance: Importance.max,
+      priority: Priority.high,
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
+      autoCancel: true,
+      showWhen: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      'Pet Detected!',
+      'Your pet has been detected near the feeder',
+      details,
+    );
   }
 } 

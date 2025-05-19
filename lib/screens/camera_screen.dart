@@ -4,6 +4,7 @@ import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:pet_feeder/services/ip_address_service.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -19,12 +20,21 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isReconnecting = false;
   final TextEditingController _urlController = TextEditingController();
   bool _isUrlEmpty = false;
+  final IpAddressService _ipAddressService = IpAddressService();
 
   @override
   void initState() {
     super.initState();
-    _urlController.text = _url;
+    _loadSavedIpAddress();
     _initializeWebView();
+  }
+
+  Future<void> _loadSavedIpAddress() async {
+    final savedIp = await _ipAddressService.getIpAddress();
+    setState(() {
+      _url = savedIp;
+      _urlController.text = savedIp;
+    });
   }
 
   @override
@@ -156,7 +166,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ElevatedButton(
                   onPressed: _isUrlEmpty 
                     ? null 
-                    : () {
+                    : () async {
                         String newUrl = _urlController.text.trim();
                         
                         if (newUrl.isEmpty) {
@@ -174,6 +184,8 @@ class _CameraScreenState extends State<CameraScreen> {
                             newUrl = '$newUrl';
                           }
                         }
+                        
+                        await _ipAddressService.setIpAddress(newUrl);
                         
                         setState(() {
                           _url = newUrl;
