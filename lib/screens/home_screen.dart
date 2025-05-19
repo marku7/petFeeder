@@ -42,22 +42,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadSavedIpAddress() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? savedIp = prefs.getString(_ipAddressKey);
-    
-    if (savedIp != null && savedIp.isNotEmpty) {
-      setState(() {
-        ipAddress = savedIp;
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? savedIp = prefs.getString(_ipAddressKey);
+      
+      if (savedIp != null && savedIp.isNotEmpty) {
+        setState(() {
+          ipAddress = savedIp;
+          _ipController.text = savedIp;
+        });
+      } else {
         _ipController.text = ipAddress;
-      });
-    } else {
+      }
+    } catch (e) {
+      print('Error loading saved IP address: $e');
       _ipController.text = ipAddress;
     }
   }
 
   Future<void> _saveIpAddress(String ip) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_ipAddressKey, ip);
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_ipAddressKey, ip);
+    } catch (e) {
+      print('Error saving IP address: $e');
+    }
   }
 
   int _getValueFromGrams(int grams) {
@@ -107,19 +116,23 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () async {
-                final newIp = _ipController.text;
-                setState(() {
-                  ipAddress = newIp;
-                });
-                await _saveIpAddress(newIp);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Successfully changed to "$ipAddress"'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
+                final newIp = _ipController.text.trim();
+                if (newIp.isNotEmpty) {
+                  setState(() {
+                    ipAddress = newIp;
+                  });
+                  await _saveIpAddress(newIp);
+                  
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Successfully changed to "$ipAddress"'),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
                 Navigator.of(context).pop();
               },
               child: const Text('SAVE'),
