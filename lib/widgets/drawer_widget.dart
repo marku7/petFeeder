@@ -8,6 +8,7 @@ import 'package:pet_feeder/screens/home_screen.dart';
 import 'package:pet_feeder/screens/my_pets_screen.dart';
 import 'package:pet_feeder/screens/schedule_feed.dart';
 import 'package:pet_feeder/screens/temperature_screen.dart';
+import 'package:pet_feeder/screens/pet_detection_screen.dart';
 import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/button_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
@@ -161,6 +162,19 @@ class _MyDrawerState extends State<DrawerWidget> {
               onTap: () {
                 Navigator.of(context).pushReplacement(MaterialPageRoute(
                     builder: (context) => const CameraScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.pets),
+              title: TextWidget(
+                text: 'Pet Detection',
+                fontSize: 12,
+                color: Colors.black,
+                fontFamily: 'Bold',
+              ),
+              onTap: () {
+                Navigator.of(context).pushReplacement(MaterialPageRoute(
+                    builder: (context) => const PetDetectionScreen()));
               },
             ),
           ],

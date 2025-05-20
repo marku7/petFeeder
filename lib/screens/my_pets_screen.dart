@@ -11,7 +11,6 @@ class MyPetsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Dummy data for pets (replace with actual data from a database or state management)
     final List<Map<String, String>> pets = [
       {
         'name': 'Buddy',
@@ -72,13 +71,9 @@ class MyPetsScreen extends StatelessWidget {
                       final pet = data.docs[index];
 
                       return ListTile(
-                        leading: pet['img'] != null
-                            ? CircleAvatar(
-                                backgroundImage: NetworkImage(pet['img']!),
-                              )
-                            : const CircleAvatar(
-                                child: Icon(Icons.pets),
-                              ),
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.pets),
+                        ),
                         title: Text(pet['name'] ?? ''),
                         subtitle:
                             Text('${pet['breed']} - ${pet['age']} years old'),
@@ -136,23 +131,19 @@ class PetDetailsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
-              child: pet['img'] != null
-                  ? Image.network(
-                      pet['img']!,
-                      height: 200,
-                      width: 200,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      height: 200,
-                      width: 200,
-                      color: Colors.grey[300],
-                      child: Icon(
-                        Icons.pets,
-                        size: 100,
-                        color: Colors.grey[700],
-                      ),
-                    ),
+              child: Container(
+                height: 200,
+                width: 200,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.pets,
+                  size: 100,
+                  color: Colors.grey[700],
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             Text(
