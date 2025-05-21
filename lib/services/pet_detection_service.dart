@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:pet_feeder/services/ip_address_service.dart';
 import 'package:pet_feeder/services/notification_service.dart';
 import 'package:pet_feeder/main.dart' as main_app;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PetDetectionService {
   static final PetDetectionService _instance = PetDetectionService._internal();
@@ -14,18 +15,63 @@ class PetDetectionService {
   final NotificationService _notificationService = NotificationService();
   final IpAddressService _ipAddressService = IpAddressService();
   bool _lastDetectionState = false;
+  DateTime? _lastNotificationTime;
+  bool _isMonitoring = false;
+
+  bool get isMonitoring => _isMonitoring;
+  bool get lastDetectionState => _lastDetectionState;
 
   Future<void> startMonitoring() async {
+    if (_isMonitoring) return;
+    
     const interval = Duration(seconds: 3);
     _timer = Timer.periodic(interval, (timer) => _checkPetDetection());
+    _isMonitoring = true;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pet_detection_enabled', true);
   }
 
-  void stopMonitoring() {
+  Future<void> stopMonitoring() async {
     _timer?.cancel();
     _timer = null;
+    _isMonitoring = false;
+    _lastDetectionState = false;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pet_detection_enabled', false);
+  }
+
+  bool _canSendNotification() {
+    if (_lastNotificationTime == null) return true;
+    
+    final now = DateTime.now();
+    final lastNotification = _lastNotificationTime!;
+    
+    bool isDifferentPeriod = false;
+    
+    // Morning: 5 AM to 11 AM
+    bool isMorning = now.hour >= 5 && now.hour < 11;
+    bool wasMorning = lastNotification.hour >= 5 && lastNotification.hour < 11;
+    
+    // Noon: 11 AM to 5 PM
+    bool isNoon = now.hour >= 11 && now.hour < 17;
+    bool wasNoon = lastNotification.hour >= 11 && lastNotification.hour < 17;
+    
+    // Evening: 5 PM to 5 AM
+    bool isEvening = now.hour >= 17 || now.hour < 5;
+    bool wasEvening = lastNotification.hour >= 17 || lastNotification.hour < 5;
+    
+    isDifferentPeriod = (isMorning && !wasMorning) || 
+                        (isNoon && !wasNoon) || 
+                        (isEvening && !wasEvening);
+    
+    return isDifferentPeriod;
   }
 
   Future<void> _checkPetDetection() async {
+    if (!_isMonitoring) return;
+    
     try {
       final ipAddress = await _ipAddressService.getDetectionIpAddress();
       final cleanIp = ipAddress.replaceAll('http://', '').replaceAll('https://', '');
@@ -47,8 +93,14 @@ class PetDetectionService {
         final isPetNear = data['isPetNear'] == 'true';
         
         if (isPetNear && !_lastDetectionState) {
-          print('DEBUG [PetDetectionService]: Pet detected, showing notification');
-          await _notificationService.showPetDetectionNotification();
+          print('DEBUG [PetDetectionService]: Pet detected');
+          
+          if (_canSendNotification()) {
+            print('DEBUG [PetDetectionService]: Sending notification');
+            await _notificationService.showPetDetectionNotification();
+            _lastNotificationTime = DateTime.now();
+          }
+          
           if (main_app.navigatorKey.currentState != null) {
             main_app.navigatorKey.currentState!.pushNamed('/pet-detection');
           }

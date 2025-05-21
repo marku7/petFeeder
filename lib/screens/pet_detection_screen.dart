@@ -7,6 +7,7 @@ import 'package:pet_feeder/widgets/drawer_widget.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 
 class PetDetectionScreen extends StatefulWidget {
   const PetDetectionScreen({Key? key}) : super(key: key);
@@ -28,30 +29,43 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
     super.initState();
     _loadSavedIp();
     _loadDetectionState();
+    _startDetectionListener();
+  }
+
+  void _startDetectionListener() {
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_isDetectionEnabled) {
+        setState(() {
+          _isPetDetected = _petDetectionService.lastDetectionState;
+        });
+      }
+    });
   }
 
   Future<void> _loadDetectionState() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isDetectionEnabled = prefs.getBool('pet_detection_enabled') ?? true;
+      _isDetectionEnabled = prefs.getBool('pet_detection_enabled') ?? false;
     });
     if (_isDetectionEnabled) {
-      _petDetectionService.startMonitoring();
+      await _petDetectionService.startMonitoring();
     } else {
-      _petDetectionService.stopMonitoring();
+      await _petDetectionService.stopMonitoring();
     }
   }
 
   Future<void> _toggleDetection(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('pet_detection_enabled', value);
     setState(() {
       _isDetectionEnabled = value;
     });
+    
     if (value) {
-      _petDetectionService.startMonitoring();
+      await _petDetectionService.startMonitoring();
     } else {
-      _petDetectionService.stopMonitoring();
+      await _petDetectionService.stopMonitoring();
+      setState(() {
+        _isPetDetected = false;
+      });
     }
   }
 
@@ -178,7 +192,7 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: _isPetDetected
+                          onPressed: _isPetDetected && _isDetectionEnabled
                               ? () {
                                   Navigator.push(
                                     context,
@@ -201,9 +215,11 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
                         ),
                         const SizedBox(width: 16),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pushReplacementNamed(context, '/');
-                          },
+                          onPressed: _isPetDetected && _isDetectionEnabled
+                              ? () {
+                                  Navigator.pushReplacementNamed(context, '/');
+                                }
+                              : null,
                           icon: const Icon(Icons.pets),
                           label: const Text('Feed Pet'),
                           style: ElevatedButton.styleFrom(
