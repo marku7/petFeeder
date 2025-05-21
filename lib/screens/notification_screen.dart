@@ -36,15 +36,10 @@ class NotificationScreen extends StatelessWidget {
             const SizedBox(height: 40),
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CameraScreen(),
-                  ),
-                );
+                Navigator.pushReplacementNamed(context, '/pet-detection');
               },
-              icon: const Icon(Icons.videocam),
-              label: const Text('Monitor'),
+              icon: const Icon(Icons.pets),
+              label: const Text('View Details'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,

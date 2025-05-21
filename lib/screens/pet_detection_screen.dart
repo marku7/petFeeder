@@ -56,7 +56,7 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
   }
 
   Future<void> _loadSavedIp() async {
-    final savedIp = await _ipAddressService.getIpAddress();
+    final savedIp = await _ipAddressService.getDetectionIpAddress();
     setState(() {
       _ipController.text = savedIp;
     });
@@ -76,7 +76,7 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
     });
 
     try {
-      await _ipAddressService.setIpAddress(_ipController.text);
+      await _ipAddressService.setDetectionIpAddress(_ipController.text);
       Fluttertoast.showToast(
         msg: 'IP address saved successfully',
         backgroundColor: Colors.green,

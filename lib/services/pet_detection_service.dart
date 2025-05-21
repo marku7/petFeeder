@@ -27,7 +27,7 @@ class PetDetectionService {
 
   Future<void> _checkPetDetection() async {
     try {
-      final ipAddress = await _ipAddressService.getIpAddress();
+      final ipAddress = await _ipAddressService.getDetectionIpAddress();
       final cleanIp = ipAddress.replaceAll('http://', '').replaceAll('https://', '');
       
       final url = 'http://$cleanIp/petDetector';

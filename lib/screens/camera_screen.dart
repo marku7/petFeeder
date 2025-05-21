@@ -14,7 +14,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
-  String _url = 'http://192.168.1.127';
+  String _url = 'http://192.168.1.229';
   late WebViewController _controller;
   bool _isLoading = true;
   bool _isReconnecting = false;
@@ -30,7 +30,7 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _loadSavedIpAddress() async {
-    final savedIp = await _ipAddressService.getIpAddress();
+    final savedIp = await _ipAddressService.getMonitoringIpAddress();
     setState(() {
       _url = savedIp;
       _urlController.text = savedIp;
@@ -185,7 +185,7 @@ class _CameraScreenState extends State<CameraScreen> {
                           }
                         }
                         
-                        await _ipAddressService.setIpAddress(newUrl);
+                        await _ipAddressService.setMonitoringIpAddress(newUrl);
                         
                         setState(() {
                           _url = newUrl;

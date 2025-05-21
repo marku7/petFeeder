@@ -5,21 +5,34 @@ class IpAddressService {
   factory IpAddressService() => _instance;
   IpAddressService._internal();
 
-  static const String _ipAddressKey = 'camera_ip_address';
-  static const String _defaultIpAddress = 'http://192.168.1.130';
+  static const String _monitoringIpKey = 'monitoring_ip_address';
+  static const String _detectionIpKey = 'detection_ip_address';
+  static const String _defaultMonitoringIp = 'http://192.168.1.229';
+  static const String _defaultDetectionIp = 'http://192.168.1.130';
 
-  Future<String> getIpAddress() async {
+  Future<String> getMonitoringIpAddress() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_ipAddressKey) ?? _defaultIpAddress;
+    return prefs.getString(_monitoringIpKey) ?? _defaultMonitoringIp;
   }
 
-  Future<void> setIpAddress(String ipAddress) async {
+  Future<String> getDetectionIpAddress() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_ipAddressKey, ipAddress);
+    return prefs.getString(_detectionIpKey) ?? _defaultDetectionIp;
+  }
+
+  Future<void> setMonitoringIpAddress(String ipAddress) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_monitoringIpKey, ipAddress);
+  }
+
+  Future<void> setDetectionIpAddress(String ipAddress) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_detectionIpKey, ipAddress);
   }
 
   Future<void> clearIpAddress() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_ipAddressKey);
+    await prefs.remove(_monitoringIpKey);
+    await prefs.remove(_detectionIpKey);
   }
 } 
