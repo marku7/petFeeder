@@ -33,7 +33,7 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
   Future<void> _loadDetectionState() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isDetectionEnabled = prefs.getBool('pet_detection_enabled') ?? false;
+      _isDetectionEnabled = prefs.getBool('pet_detection_enabled') ?? true;
     });
     if (_isDetectionEnabled) {
       _petDetectionService.startMonitoring();
@@ -140,7 +140,7 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
                       controller: _ipController,
                       decoration: InputDecoration(
                         labelText: 'IP Address',
-                        hintText: 'http://192.168.1.127',
+                        hintText: 'http://192.168.1.139',
                         border: const OutlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.save),
@@ -174,27 +174,48 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _isPetDetected
-                          ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const CameraScreen(),
-                                ),
-                              );
-                            }
-                          : null,
-                      icon: const Icon(Icons.videocam),
-                      label: const Text('Monitor Pet'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 16,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _isPetDetected
+                              ? () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const CameraScreen(),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          icon: const Icon(Icons.videocam),
+                          label: const Text('Monitor Pet'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushReplacementNamed(context, '/');
+                          },
+                          icon: const Icon(Icons.pets),
+                          label: const Text('Feed Pet'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

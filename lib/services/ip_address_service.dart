@@ -6,7 +6,7 @@ class IpAddressService {
   IpAddressService._internal();
 
   static const String _ipAddressKey = 'camera_ip_address';
-  static const String _defaultIpAddress = 'http://192.168.1.127';
+  static const String _defaultIpAddress = 'http://192.168.1.130';
 
   Future<String> getIpAddress() async {
     final prefs = await SharedPreferences.getInstance();

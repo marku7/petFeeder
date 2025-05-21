@@ -16,7 +16,7 @@ class PetDetectionService {
   bool _lastDetectionState = false;
 
   Future<void> startMonitoring() async {
-    const interval = Duration(seconds: 5);
+    const interval = Duration(seconds: 3);
     _timer = Timer.periodic(interval, (timer) => _checkPetDetection());
   }
 
@@ -30,7 +30,7 @@ class PetDetectionService {
       final ipAddress = await _ipAddressService.getIpAddress();
       final cleanIp = ipAddress.replaceAll('http://', '').replaceAll('https://', '');
       
-      final url = 'http://$cleanIp/petdetector';
+      final url = 'http://$cleanIp/petDetector';
       print('DEBUG [PetDetectionService]: Checking URL: $url');
       
       final response = await http.get(Uri.parse(url)).timeout(
