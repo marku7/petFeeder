@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:pet_feeder/main.dart' as main_app;
 import 'package:pet_feeder/screens/home_screen.dart';
+import 'package:pet_feeder/screens/alarm_screen.dart';
 import 'package:pet_feeder/services/local_storage_service.dart';
 import 'package:pet_feeder/utils/colors.dart';
 import 'package:pet_feeder/widgets/text_widget.dart';
@@ -52,10 +53,18 @@ class _FeedAlarmScreenState extends State<FeedAlarmScreen> with WidgetsBindingOb
     try {
       print("DEBUG [FeedAlarmScreen]: Playing alarm sound");
       await _audioPlayer.play(AssetSource('images/sound.wav'));
-      _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      _audioPlayer.setReleaseMode(ReleaseMode.release);
       setState(() {
         _isPlaying = true;
       });
+      
+      // Add listener for when audio completes
+      _audioPlayer.onPlayerComplete.listen((event) {
+        setState(() {
+          _isPlaying = false;
+        });
+      });
+      
       print("DEBUG [FeedAlarmScreen]: Alarm sound playing successfully");
     } catch (e) {
       print("DEBUG [FeedAlarmScreen]: Error playing alarm sound: $e");
@@ -188,15 +197,34 @@ class _FeedAlarmScreenState extends State<FeedAlarmScreen> with WidgetsBindingOb
                 GestureDetector(
                   onTap: () async {
                     _stopAlarm();
+                    
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          content: Row(
+                            children: [
+                              const CircularProgressIndicator(color: primary),
+                              const SizedBox(width: 20),
+                              Text('Feeding ${widget.schedule.grams} grams...')
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                    
                     await _deleteSchedule();
                     
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => HomeScreen(
-                          preselectedGrams: widget.schedule.grams,
+                    if (mounted) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => HomeScreen(
+                            preselectedGrams: widget.schedule.grams,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   },
                   child: Container(
                     width: 120,

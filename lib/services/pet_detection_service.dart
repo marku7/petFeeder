@@ -94,15 +94,9 @@ class PetDetectionService {
         
         if (isPetNear && !_lastDetectionState) {
           print('DEBUG [PetDetectionService]: Pet detected');
-          
-          if (_canSendNotification()) {
-            print('DEBUG [PetDetectionService]: Sending notification');
-            await _notificationService.showPetDetectionNotification();
-            _lastNotificationTime = DateTime.now();
-          }
-          
+          await _notificationService.showPetDetectionNotification();
           if (main_app.navigatorKey.currentState != null) {
-            main_app.navigatorKey.currentState!.pushNamed('/pet-detection');
+            main_app.openPetDetectionScreen();
           }
         }
         

@@ -165,7 +165,7 @@ class _MyDrawerState extends State<DrawerWidget> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.pets),
+              leading: const Icon(Icons.notification_important),
               title: TextWidget(
                 text: 'Pet Detection',
                 fontSize: 12,

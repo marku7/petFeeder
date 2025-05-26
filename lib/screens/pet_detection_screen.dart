@@ -27,6 +27,7 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
   @override
   void initState() {
     super.initState();
+    _isDetectionEnabled = false;
     _loadSavedIp();
     _loadDetectionState();
     _startDetectionListener();
@@ -44,10 +45,11 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
 
   Future<void> _loadDetectionState() async {
     final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getBool('pet_detection_enabled') ?? false;
     setState(() {
-      _isDetectionEnabled = prefs.getBool('pet_detection_enabled') ?? false;
+      _isDetectionEnabled = saved == true ? true : false;
     });
-    if (_isDetectionEnabled) {
+    if (saved == true) {
       await _petDetectionService.startMonitoring();
     } else {
       await _petDetectionService.stopMonitoring();
@@ -58,6 +60,9 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
     setState(() {
       _isDetectionEnabled = value;
     });
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('pet_detection_enabled', value);
     
     if (value) {
       await _petDetectionService.startMonitoring();
@@ -122,122 +127,132 @@ class _PetDetectionScreenState extends State<PetDetectionScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'PIR Sensor IP Address',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'PIR Sensor IP Address',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Switch(
+                            value: _isDetectionEnabled,
+                            onChanged: _toggleDetection,
+                            activeColor: primary,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _ipController,
+                        decoration: InputDecoration(
+                          labelText: 'IP Address',
+                          hintText: 'http://192.168.1.139',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.save),
+                            onPressed: _isLoading ? null : _saveIpAddress,
                           ),
                         ),
-                        Switch(
-                          value: _isDetectionEnabled,
-                          onChanged: _toggleDetection,
-                          activeColor: primary,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _ipController,
-                      decoration: InputDecoration(
-                        labelText: 'IP Address',
-                        hintText: 'http://192.168.1.139',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: const Icon(Icons.save),
-                          onPressed: _isLoading ? null : _saveIpAddress,
-                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.pets,
-                      size: 80,
-                      color: _isPetDetected ? primary : Colors.grey,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _isPetDetected ? 'Pet Detected!' : 'No Pet Detected',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+              const SizedBox(height: 24),
+              Card(
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.pets,
+                        size: 80,
                         color: _isPetDetected ? primary : Colors.grey,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _isPetDetected && _isDetectionEnabled
-                              ? () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const CameraScreen(),
-                                    ),
-                                  );
-                                }
-                              : null,
-                          icon: const Icon(Icons.videocam),
-                          label: const Text('Monitor Pet'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
-                            ),
-                          ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _isPetDetected ? 'Pet Detected!' : 'No Pet Detected',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: _isPetDetected ? primary : Colors.grey,
                         ),
-                        const SizedBox(width: 16),
-                        ElevatedButton.icon(
-                          onPressed: _isPetDetected && _isDetectionEnabled
-                              ? () {
-                                  Navigator.pushReplacementNamed(context, '/');
-                                }
-                              : null,
-                          icon: const Icon(Icons.pets),
-                          label: const Text('Feed Pet'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
+                      ),
+                      const SizedBox(height: 24),
+                      IntrinsicWidth(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _isPetDetected && _isDetectionEnabled
+                                    ? () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const CameraScreen(),
+                                          ),
+                                        );
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.videocam),
+                                label: const Text('Monitor Pet'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  minimumSize: const Size(100, 48),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _isPetDetected && _isDetectionEnabled
+                                    ? () {
+                                        Navigator.pushReplacementNamed(context, '/');
+                                      }
+                                    : null,
+                                icon: const Icon(Icons.pets),
+                                label: const Text('Feed Pet'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                  minimumSize: const Size(100, 48),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

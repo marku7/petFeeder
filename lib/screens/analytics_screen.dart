@@ -31,6 +31,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     loadStoredData().then((_) {
       fetchTemperatureData();
       fetchFoodLevelData();
+      
+      // Set up periodic data fetching
+      Future.delayed(const Duration(minutes: 5), () {
+        if (mounted) {
+          fetchTemperatureData();
+          fetchFoodLevelData();
+        }
+      });
     });
   }
   
@@ -56,28 +64,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   
   Future<void> storeTemperatureData(DateTime timestamp, double value) async {
     final dateStr = DateFormat('yyyy-MM-dd').format(timestamp);
+    final prefs = await SharedPreferences.getInstance();
     
-    if (!temperatureHistory.containsKey(dateStr)) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('temp_$dateStr', value);
-      
-      setState(() {
-        temperatureHistory[dateStr] = value;
-      });
-    }
+    // Always store the latest temperature data
+    await prefs.setDouble('temp_$dateStr', value);
+    
+    setState(() {
+      temperatureHistory[dateStr] = value;
+    });
   }
   
   Future<void> storeFoodLevelData(DateTime timestamp, double value) async {
     final dateStr = DateFormat('yyyy-MM-dd').format(timestamp);
-  
-    if (!foodLevelHistory.containsKey(dateStr)) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('food_$dateStr', value);
-      
-      setState(() {
-        foodLevelHistory[dateStr] = value;
-      });
-    }
+    final prefs = await SharedPreferences.getInstance();
+    
+    await prefs.setDouble('food_$dateStr', value);
+    
+    setState(() {
+      foodLevelHistory[dateStr] = value;
+    });
   }
 
   Future<void> fetchTemperatureData() async {
@@ -100,7 +105,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           await storeTemperatureData(date, temp);
         }
       }
-      print(currentTemperature);
     } catch (e) {
       print('Error fetching temperature data: $e');
     }
@@ -113,7 +117,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       
       if (snapshot.exists) {
         final data = snapshot.value as Map<dynamic, dynamic>;
-        final foodLevel = (double.tryParse(data['distance']?.toString() ?? '0') ?? 0) / 10;
+      final foodLevel = double.tryParse(data['distance']?.toString() ?? '0') ?? 0;
         int timestamp = int.tryParse(data['timestamp']?.toString() ?? '0') ?? 0;
         final date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
         
@@ -205,16 +209,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const SizedBox(height: 10),
               Builder(builder: (context) {
                 List<SalesData> tempChartData = lastFourDays.map((day) {
-                  double temp = 25.0;
-                  
                   String dateKey = DateFormat('yyyy-MM-dd').format(day);
+                  double temp = 25.0; // Default value
                   
-                  if (temperatureHistory.containsKey(dateKey)) {
-                    temp = temperatureHistory[dateKey]!;
-                  }
-                  else if (day.year == now.year && day.month == now.month && day.day == now.day && 
-                      temperatureTimestamp != null && currentTemperature != null) {
-                    temp = currentTemperature!;
+                  // For today, use current temperature if available
+                  if (day.year == now.year && day.month == now.month && day.day == now.day) {
+                    temp = currentTemperature ?? temperatureHistory[dateKey] ?? 25.0;
+                  } else {
+                    // For past days, use stored history
+                    temp = temperatureHistory[dateKey] ?? 25.0;
                   }
                   
                   return SalesData(getDayLabel(day), temp);
@@ -257,16 +260,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const SizedBox(height: 10),
               Builder(builder: (context) {
                 List<SalesData> foodLevelChartData = lastFourDays.map((day) {
-                  double foodLevel = 15.0;
-                  
                   String dateKey = DateFormat('yyyy-MM-dd').format(day);
+                  double foodLevel = 15.0; // Default value
                   
-                  if (foodLevelHistory.containsKey(dateKey)) {
-                    foodLevel = foodLevelHistory[dateKey]!;
-                  }
-                  else if (day.year == now.year && day.month == now.month && day.day == now.day && 
-                      foodLevelTimestamp != null && currentFoodLevel != null) {
-                    foodLevel = currentFoodLevel!;
+                  // For today, use current food level if available
+                  if (day.year == now.year && day.month == now.month && day.day == now.day) {
+                    foodLevel = currentFoodLevel ?? foodLevelHistory[dateKey] ?? 15.0;
+                  } else {
+                    // For past days, use stored history
+                    foodLevel = foodLevelHistory[dateKey] ?? 15.0;
                   }
                   
                   return SalesData(getDayLabel(day), foodLevel);
@@ -279,12 +281,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       child: SfCartesianChart(
                         primaryXAxis: CategoryAxis(
                           majorGridLines: const MajorGridLines(width: 0),
+                          opposedPosition: true,
                         ),
                         primaryYAxis: NumericAxis(
                           title: AxisTitle(text: "Food Level (cm)"),
                           minimum: 0,
                           maximum: 20,
                           interval: 5,
+                          isInversed: true,
                         ),
                         series: <CartesianSeries>[
                           LineSeries<SalesData, String>(

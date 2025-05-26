@@ -65,8 +65,10 @@ void setupNotificationClickHandling() {
       print("DEBUG [Main]: App launched from notification: ${details.notificationResponse?.id}");
       
       if (details.notificationResponse?.payload != null) {
-        handleNotificationPayload(details.notificationResponse!.payload!);
+        final payload = details.notificationResponse!.payload!;
+        handleNotificationPayload(payload);
       } else {
+        // Only show pet detection screen if no payload (pet detection doesn't use a payload)
         if (navigatorKey.currentState != null) {
           navigatorKey.currentState!.push(
             MaterialPageRoute(

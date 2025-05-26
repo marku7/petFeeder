@@ -198,17 +198,38 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
   
+  void showLoadingDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: Row(
+            children: const [
+              CircularProgressIndicator(color: primary),
+              SizedBox(width: 20),
+              Text('Feeding...'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _processFeedWithoutDialog() async {
+    showLoadingDialog();
     bool success = await sendFeedCommand(selectedValue);
+    Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading dialog
     
     if (success) {
       int grams = getGramsFromValue(selectedValue);
       await addFeed(grams);
       
       if (mounted) {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => const ConfirmationScreen(),
-        ));
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
       }
     } else {
       if (mounted) {
@@ -217,6 +238,10 @@ class _HomeScreenState extends State<HomeScreen> {
             content: Text('Failed to feed. Please check your connection and try again.'),
             backgroundColor: Colors.red,
           ),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
         );
       }
     }
@@ -309,8 +334,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             isLoading = true;
                           });
 
+                          showLoadingDialog();
                           final success = await sendFeedCommand(selectedValue);
-                          
+                          Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading dialog
                           Navigator.of(context).pop();
 
                           if (success) {
@@ -380,9 +406,9 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             TextWidget(
-              text: widget.preselectedGrams != null ? 
-                'Feeding ${widget.preselectedGrams} grams...' : 
-                'Press the Button to Feed',
+              text: widget.preselectedGrams != null
+                  ? ''
+                  : 'Press the Button to Feed',
               fontSize: 18,
               color: primary,
               fontFamily: 'Bold',

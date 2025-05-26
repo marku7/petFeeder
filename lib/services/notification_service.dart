@@ -53,12 +53,16 @@ class NotificationService {
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         print("DEBUG [NotificationService]: Notification tapped: ${response.id}");
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (main_app.navigatorKey.currentState != null) {
-            main_app.navigatorKey.currentState!.push(
-              MaterialPageRoute(
-                builder: (context) => const NotificationScreen(),
-              ),
-            );
+          if (response.payload != null && response.payload!.contains('|')) {
+            _handleNotificationResponse(response);
+          } else {
+            if (main_app.navigatorKey.currentState != null) {
+              main_app.navigatorKey.currentState!.push(
+                MaterialPageRoute(
+                  builder: (context) => const NotificationScreen(),
+                ),
+              );
+            }
           }
         });
       },
@@ -367,6 +371,7 @@ class NotificationService {
       'Pet Detected!',
       'Your pet has been detected near the feeder',
       details,
+      payload: 'pet_detection',
     );
   }
 } 
