@@ -14,7 +14,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen> {
-  String _url = 'http://192.168.1.229';
+  String _url = 'https://50bd-122-2-10-30.ngrok-free.app';
   late WebViewController _controller;
   bool _isLoading = true;
   bool _isReconnecting = false;
@@ -31,10 +31,16 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> _loadSavedIpAddress() async {
     final savedIp = await _ipAddressService.getMonitoringIpAddress();
-    setState(() {
-      _url = savedIp;
-      _urlController.text = savedIp;
-    });
+    if (savedIp.isNotEmpty) {
+      setState(() {
+        _url = savedIp;
+        _urlController.text = savedIp;
+      });
+    } else {
+      setState(() {
+        _urlController.text = _url;
+      });
+    }
   }
 
   @override
@@ -71,7 +77,6 @@ class _CameraScreenState extends State<CameraScreen> {
               _isLoading = false;
               _isReconnecting = false;
             });
-            
             Fluttertoast.showToast(
               msg: 'Connection error: ${error.description}',
               toastLength: Toast.LENGTH_LONG,
@@ -79,13 +84,11 @@ class _CameraScreenState extends State<CameraScreen> {
               backgroundColor: Colors.red,
               textColor: Colors.white,
             );
-            
             print('WebView error: ${error.description}');
           },
         ),
       )
       ..loadRequest(Uri.parse(_url));
-    
     Fluttertoast.showToast(
       msg: 'Connecting to: $_url',
       toastLength: Toast.LENGTH_SHORT,
@@ -98,7 +101,6 @@ class _CameraScreenState extends State<CameraScreen> {
   void _showUrlConfigDialog() {
     _urlController.text = _url;
     _isUrlEmpty = false;
-    
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -168,7 +170,6 @@ class _CameraScreenState extends State<CameraScreen> {
                     ? null 
                     : () async {
                         String newUrl = _urlController.text.trim();
-                        
                         if (newUrl.isEmpty) {
                           Fluttertoast.showToast(
                             msg: 'URL cannot be empty',
@@ -176,7 +177,6 @@ class _CameraScreenState extends State<CameraScreen> {
                           );
                           return;
                         }
-                        
                         if (!_isValidUrl(newUrl)) {
                           if (newUrl.startsWith("rtsp")) {
                             newUrl = newUrl.substring(4);
@@ -184,22 +184,17 @@ class _CameraScreenState extends State<CameraScreen> {
                             newUrl = '$newUrl';
                           }
                         }
-                        
                         await _ipAddressService.setMonitoringIpAddress(newUrl);
-                        
                         setState(() {
                           _url = newUrl;
                           _isReconnecting = true;
                         });
-                        
                         Navigator.of(context).pop();
-                        
                         Fluttertoast.showToast(
                           msg: 'Connecting to: $_url',
                           backgroundColor: Colors.green,
                           toastLength: Toast.LENGTH_SHORT,
                         );
-                        
                         _controller.loadRequest(Uri.parse(_url));
                       },
                   style: ElevatedButton.styleFrom(
@@ -241,7 +236,6 @@ class _CameraScreenState extends State<CameraScreen> {
       body: Stack(
         children: [
           WebViewWidget(controller: _controller),
-          
           if (_isLoading || _isReconnecting)
             Container(
               color: Colors.black54,
@@ -273,7 +267,6 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
               ),
             ),
-            
           Positioned(
             bottom: 16,
             left: 0,

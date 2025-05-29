@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PetDetectionService {
   static final PetDetectionService _instance = PetDetectionService._internal();
   factory PetDetectionService() => _instance;
-  PetDetectionService._internal();
+  PetDetectionService._internal() {
+    _initializeState();
+  }
 
   Timer? _timer;
   final NotificationService _notificationService = NotificationService();
@@ -20,6 +22,14 @@ class PetDetectionService {
 
   bool get isMonitoring => _isMonitoring;
   bool get lastDetectionState => _lastDetectionState;
+
+  Future<void> _initializeState() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isMonitoring = prefs.getBool('pet_detection_enabled') ?? false;
+    if (_isMonitoring) {
+      startMonitoring();
+    }
+  }
 
   Future<void> startMonitoring() async {
     if (_isMonitoring) return;
